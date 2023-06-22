@@ -1,0 +1,56 @@
+---
+title: "final_project"
+author: "Shira, Moria, Naama"
+date: "2023-06-21"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(googledrive)
+drive_auth()
+```
+
+```{r}
+url="https://drive.google.com/file/d/1Ecqg0itgMpaVxuy3lbQt_OHQm77JQpif/view?usp=sharing"
+drive_download(url,overwrite=TRUE)
+```
+```{r}
+Breast_cancer <- read.delim("brca_tcga_clinical_data.tsv")
+```
+
+```{r}
+Breast_cancer$ER.Status.By.IHC
+```
+
+```{r}
+Breast_cancer$HER2.ihc.score
+```
+
+```{r}
+Breast_cancer$ER.Status.By.IHC
+```
+
+```{r}
+Breast_cancer$Overall.Survival.Status
+Breast_cancer$Overall.Survival..Months.
+```
+
+```{r}
+
+```
+
+```{r}
+#Breast_cancer$Neoplasm.American....
+Breast_cancer$Patient.Primary.Tumor.Site
+Breast_cancer$Patient.Metastatic.Sites
+Breast_cancer$Cancer.Type.Detailed
+Breast_cancer$Prior.Cancer.Diagnosis.Occurence
+Breast_cancer$Surgical.procedure.first
+Breast_cancer$Disease.Surgical.Margin.Status
+Breast_cancer$Menopause.Status
+
+Breast_cancer$Sex
+Breast_cancer$Race.Category
+```
+
+#ne
