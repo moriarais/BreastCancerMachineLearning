@@ -11,6 +11,9 @@ drive_auth()
 ```
 
 ```{r}
+#y_mutation="https://drive.google.com/file/d/1q8JVD3bzpQuqT0E4xuGCKYmFoeV9E06p/view?usp=sharing"
+#rna_seq="https://drive.google.com/file/d/12vP1vSCxTXweYs1AiTKoPPohmK1nRaMU/view?usp=sharing"
+
 url="https://drive.google.com/file/d/1Ecqg0itgMpaVxuy3lbQt_OHQm77JQpif/view?usp=sharing"
 drive_download(url,overwrite=TRUE)
 ```
