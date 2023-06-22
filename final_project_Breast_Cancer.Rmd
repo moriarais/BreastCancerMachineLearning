@@ -56,4 +56,22 @@ Breast_cancer$Sex
 Breast_cancer$Race.Category
 ```
 
-#ne
+```{r, warning=FALSE}
+library(RColorBrewer)
+race_counts <- table(Breast_cancer$Race.Category)
+myPalette <- brewer.pal(length(race_counts), "Set2") 
+pie(race_counts , labels = c("NATIVE","ASIAN","AFRICAN AMERICAN", "CAUCASIAN"), border="white", col=myPalette )
+
+sex_counts <- table(Breast_cancer$Sex)
+myPalette <- brewer.pal(length(sex_counts), "Set3") 
+pie(sex_counts , labels = names(sex_counts), border="white", col=myPalette )
+
+survival_counts <- table(Breast_cancer$Overall.Survival.Status)
+myPalette <- brewer.pal(length(survival_counts), "Set2") 
+pie(survival_counts , labels = c("ALIVE","DEAD"), border="white", col=myPalette )
+
+Menopause <- table(Breast_cancer$Menopause.Status)
+myPalette <- brewer.pal(length(Menopause), "Set3") 
+pie(Menopause , labels = c("Indeterminate","Peri: 6-12 mos","Post : >12 mos","Pre"), border="white", col=myPalette )
+
+```
