@@ -4,13 +4,14 @@ author: "Shira, Moria, Naama"
 date: "2023-06-22"
 output: html_document
 ---
-
-
+## Libraries
 
 ```{r setup, include=FALSE}
 library(googledrive)
 library(ggplot2)
 library(readr)
+library(googledrive)
+library(RColorBrewer)
 library(RColorBrewer)
 library(httr)
 ```
@@ -29,30 +30,25 @@ url="https://drive.google.com/file/d/1_98OI7FKtb_Ky3lHyh0QwYPt43xYZkF2/view?usp=
 drive_download(url,overwrite=TRUE)
 rna_seq_data_x<-read.csv(drive_download(url,overwrite=TRUE))
 
-
+brca_tcga_clinical_data.tsv
 ```{r}
-# Specify the path to your CSV file
-#Breast_cancer_staging_V2
-#bc_data <- read.csv("Breast_cancer_staging_V2.csv")
-#head(bc_data$ihc)
-
+#or read.csv("Breast_cancer_staging_V2.csv")
 bc_data <- read.delim("brca_tcga_clinical_data.tsv")
 head(bc_data)
 ```
-
-
+scaled_x_rna_seq2.csv
 ```{r}
-data <- read.csv("scaled_x_rna_seq2.csv")
-dim(data)
-head(data)
+#scaled_data <- read.csv("scaled_x_rna_seq2.csv")
+dim(scaled_data)
+head(scaled_data)
 ```
-
+y_mutations
 ```{r}
 y_mutations <- read.csv("y_mutations2.csv")
 dim(y_mutations)
 head(y_mutations)
 ```
-
+bc_data_df
 ```{r}
 # Selecting specific columns using subset()
 bc_data_df <- subset(bc_data, select = c(Patient.ID,ER.Status.By.IHC,IHC.HER2,PR.status.by.ihc,Overall.Survival.Status))
@@ -60,12 +56,180 @@ head(bc_data_df)
 ```
 
 ```{r}
-mutation_data <- merge(y_mutations, bc_data_df, by.x = "X", by.y = "Patient.ID")
-head(mutation_data)
-data_x_y<-merge(mutation_data, data, by.x = "X", by.y = "X")
+Breast_cancer <- read.delim("brca_tcga_clinical_data.tsv")
+```
+## pie charts
+
+```{r}
+er <- table(Breast_cancer$ER.Status.By.IHC)
+myPalette <- brewer.pal(length(er), "Set3") 
+pie(er , labels = names(er), border="white", col=myPalette ,main="ER Status")
+```
+
+```{r}
+her2 <- table(Breast_cancer$IHC.HER2)
+myPalette <- brewer.pal(length(her2), "Set3") 
+pie(her2 , labels = names(her2), border="white", col=myPalette ,main="HER2 Status")
+```
+
+```{r}
+pr <- table(Breast_cancer$PR.status.by.ihc)
+myPalette <- brewer.pal(length(pr), "Set3") 
+pie(pr , labels = names(pr), border="white", col=myPalette ,main="PR Status")
+```
+
+```{r, warning=FALSE}
+race_counts <- table(Breast_cancer$Race.Category)
+myPalette <- brewer.pal(length(race_counts), "Set2") 
+pie(race_counts , labels = c("NATIVE","ASIAN","AFRICAN AMERICAN", "CAUCASIAN"), border="white", col=myPalette )
+
+sex_counts <- table(Breast_cancer$Sex)
+myPalette <- brewer.pal(length(sex_counts), "Set3") 
+pie(sex_counts , labels = names(sex_counts), border="white", col=myPalette )
+
+survival_counts <- table(Breast_cancer$Overall.Survival.Status)
+myPalette <- brewer.pal(length(survival_counts), "Set2") 
+pie(survival_counts , labels = c("ALIVE","DEAD"), border="white", col=myPalette )
+
+Menopause <- table(Breast_cancer$Menopause.Status)
+myPalette <- brewer.pal(length(Menopause), "Set3") 
+pie(Menopause , labels = c("Indeterminate","Peri: 6-12 mos","Post : >12 mos","Pre"), border="white", col=myPalette )
+
+```
+
+```{r, warning=FALSE}
+Breast_cancer %>% 
+    group_by(Diagnosis.Age) %>%
+    count() %>%
+    #filter(n>10) %>%
+    ggplot() +
+    geom_col(aes(Diagnosis.Age,n),fill = 'pink')+
+    ggtitle("Age Analysis")+
+    xlab("Age")+
+    ylab("Age Count")
+
+Age<-(Breast_cancer$Diagnosis.Age)
+Mutation_Count<-(Breast_cancer$Mutation.Count)
+
+plot(Age,Mutation_Count, ylab = "Mutation Count", xlab = "Age", main = "Mutation_Count vs. Age")
+```
+
+```{r}
+numeric_bc <- Breast_cancer[, c("Mutation.Count", "Fraction.Genome.Altered", "Diagnosis.Age", "Days.to.Sample.Collection.", "Lymph.Node.s..Examined.Number", "Sample.Initial.Weight")]
+# Calculate the correlation matrix
+cor_numeric_bc <- cor(numeric_bc, use = "pairwise.complete.obs")
+# Subset the correlation matrix for variables with missing values
+cor_missing_values <- cor_numeric_bc[, colSums(is.na(numeric_bc)) > 0]
+
+library(corrplot)
+corrplot(cor_missing_values, method = "square", type = "upper")
+```
+
+Breast_cancer$Neoplasm.American....
+Breast_cancer$Patient.Primary.Tumor.Site
+Breast_cancer$Patient.Metastatic.Sites
+Breast_cancer$Cancer.Type.Detailed
+Breast_cancer$Prior.Cancer.Diagnosis.Occurence
+Breast_cancer$Surgical.procedure.first
+Breast_cancer$Disease.Surgical.Margin.Status
+Breast_cancer$Menopause.Status
+
+Breast_cancer$Sex
+Breast_cancer$Race.Category
+
+## survival plots
+```{r}
+#install.packages("survival")
+library(survival)
+library(survminer)
+library(ggpubr)
+
+# Filter the data for GBM samples only
+data_bc_filtered <- bc_data
+#TP53     
+data_bc_filtered$Vital_status <- ifelse(data_bc_filtered$Overall.Survival.Status == "0:LIVING", 0, 1)
+
+# Specify the correct column names for time and status in the Surv() function
+fit <- survfit(Surv(Overall.Survival..Months., Vital_status) ~ Sex, data = data_bc_filtered)
+
+# Create a new plot with survival curves for high and low expression
+g <- ggsurvplot(fit, data = data_bc_filtered, risk.table = FALSE, pval = TRUE,
+                risk.table.y.text = FALSE, risk.table.height = 0.3,
+                palette = c("#2E9FDF", "purple"), conf.int = TRUE,
+                xlab = "Time from Diagnosis (months)",
+                ylab = "Proportion Survival",
+                font.x = c(17, "bold", "black"),
+                font.y = c(17, "bold", "black"),
+                font.tickslab = c(17, "bold", "black"),
+                legend.title = "TRERNA1 Expression: ",
+                legend = c(0.89, 0.89),
+                title = "Survival\n")
+
+# Display the survival plot
+g
+
+```
+
+```{r}
+tmp <- y_mutations[, c("X", "TP53")]
+tmp2<-bc_data[,c("Patient.ID","Overall.Survival.Status","Overall.Survival..Months.")]
+tmp2$Overall.Survival.Status<- ifelse(tmp2$Overall.Survival.Status == "0:LIVING", 0, 1)
+tail(tmp2)
+colnames(tmp) <- c("Patient.ID", "TP53")
+head(tmp)
+```
+
+```{r}
+tp53_data<-(merge(tmp2, tmp, by= "Patient.ID"))
+
+# Specify the correct column names for time and status in the Surv() function
+fit <- survfit(Surv(Overall.Survival..Months., Overall.Survival.Status) ~ TP53, data = tp53_data)
+
+# Create a new plot with survival curves for high and low expression
+g <- ggsurvplot(fit, data = tp53_data, risk.table = FALSE, pval = TRUE,
+                risk.table.y.text = FALSE, risk.table.height = 0.3,
+                palette = c("#2E9FDF", "purple"), conf.int = TRUE,
+                xlab = "Time from Diagnosis (months)",
+                ylab = "Proportion Survival",
+                font.x = c(17, "bold", "black"),
+                font.y = c(17, "bold", "black"),
+                font.tickslab = c(17, "bold", "black"),
+                legend.title = "TRERNA1 Expression: ",
+                legend = c(0.89, 0.89),
+                title = "Survival\n")
+                #xlim = c(0, 20), ggtheme = theme_bw()
+
+# Display the survival plot
+g
+
+```
+
+```{r}
+print(head(tp53_data))
+#TP53_data <- merge(tmp2, tmp, by.x = "Patient.ID", by.y = "X")
+```
+```{r}
+# Assuming your data is stored in a data frame called 'data'
+# Extract the features (X) and class labels (y)
+#scaled_data
+
+RNAseq_data_survival <- merge(scaled_data, subset(bc_data, select = c(Patient.ID,Overall.Survival.Status)), by.x = "X", by.y = "Patient.ID")
+RNAseq_data_survival <- na.omit(RNAseq_data_survival)
+
+head(RNAseq_data_survival)
+data_rna_survival <- RNAseq_data_survival[,2:56500]
+head(colnames(data_rna_survival))
 ```
 
 ## PCA on y_mutation data and scaled rna seq
+
+mereged mutation data
+```{r}
+mutation_data <- merge(y_mutations, bc_data_df, by.x = "X", by.y = "Patient.ID")
+head(mutation_data)
+data_x_y<-merge(mutation_data, scaled_data, by.x = "X", by.y = "X")
+```
+
 ```{r}
 head(data_x_y)
 data_x_y_pca <- data_x_y[, !(names(data_x_y) %in% c("X", "Overall.Survival.Status", "ER.Status.By.IHC", "IHC.HER2", "PR.status.by.ihc"))]
@@ -114,7 +278,7 @@ ggplot(pc_scores_XY, aes(x = PC1, y = PC2, color = PR.status.by.ihc)) +
   theme_minimal()
 
 ```
-
+## PCA - on mutation
 ```{r}
 bc_data_df <- subset(bc_data, select = c(Patient.ID,Overall.Survival.Status,ER.Status.By.IHC,IHC.HER2,PR.status.by.ihc))
 head(bc_data_df)
@@ -166,6 +330,7 @@ ggplot(pc_scores_y, aes(x = PC1, y = PC2, color = PR.status.by.ihc)) +
   theme_minimal()
 
 ```
+
 ```{r}
 gene_summaries <- colSums(y_mutations[, -1])
 gene_summaries
@@ -174,7 +339,230 @@ id_summaries <- rowSums(y_mutations[, -1])
 # Create the bar plot
 barplot(table(id_summaries), main = "Frequency", xlab = "Number of mutation", ylab = "Count")
 ```
+##ER statuse and rna seq 
+```{r}
+sub_rna <- subset(bc_data, select = c(Patient.ID,ER.Status.By.IHC))
+head(sub_rna)
 
+RNAseq_data_er <- merge(scaled_data, sub_rna, by.x = "X", by.y = "Patient.ID")
+#RNAseq_data_er <- as.data.frame(RNAseq_data_er)
+
+RNAseq_data_er <- na.omit(RNAseq_data_er)
+
+
+head(RNAseq_data_er)
+rna_data_rf <- RNAseq_data_er[,2:56499]
+er_status <- RNAseq_data_er$ER.Status.By.IHC
+er_status <- factor(er_status)
+
+
+
+```
+
+```{r}
+rna_matrix <- as.matrix(rna_data_rf)
+
+# Perform k-means clustering with 3 clusters
+set.seed(123)  # For reproducibility
+k <- 3  # Number of clusters
+kmeans_result <- kmeans(rna_matrix, centers = k)
+
+# Get the cluster assignments for each data point
+cluster_labels <- kmeans_result$cluster
+
+# Assuming 'Class' column is a factor
+class_labels <- RNAseq_data_er$ER.Status.By.IHC
+
+# Visualize the clusters and class labels (optional)
+# Example: PCA plot
+library(ggplot2)
+#library(prcomp)
+
+# Perform PCA
+pca <- prcomp(rna_matrix)
+
+# Create a data frame with PCA results, cluster labels, and class labels
+pca_data <- data.frame(PC1 = pca$x[, 1], PC2 = pca$x[, 2], Cluster = factor(cluster_labels), Class = factor(class_labels))
+
+# Define colors for the class labels
+class_colors <- c("Positive" = "blue", "Negative" = "red", "NA" = "green", "Indeterminate" = "orange")
+
+# Plot PCA with clusters and class labels
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Class, shape = Cluster)) +
+  geom_point() +
+  labs(title = "RNA-seq Data Clustering using k-means (k = 3)") +
+  scale_color_manual(values = class_colors) +
+  guides(shape = guide_legend(title = "Cluster"), color = guide_legend(title = "Class"))
+
+```
+
+
+## knn for progesteron and estrogen
+```{r}
+# Load required packages
+library(caret)
+library(class)
+library(ggplot2)
+
+# Prepare the data
+rna_data <- rna_data_rf # Remove the first column if it contains row names
+rna_matrix <- as.matrix(rna_data)  # Convert data to a numeric matrix
+rna_data$Class <- as.factor(RNAseq_data_er$ER.Status.By.IHC)  # Convert class column to factor
+
+# Split the data into training and testing sets
+set.seed(123)  # Set seed for reproducibility
+train_percentage <- 0.7  # Specify the percentage of data for training
+train_indices <- createDataPartition(rna_data$Class, p = train_percentage, list = FALSE)
+rna_train <- rna_matrix[train_indices, ]
+rna_test <- rna_matrix[-train_indices, ]
+class_train <- rna_data$Class[train_indices]
+class_train <- as.factor(class_train)
+
+# Perform k-NN classification
+k <- 4  # Set the number of nearest neighbors
+knn_model <- knn(train = rna_train, test = rna_test, cl = class_train, k = k)
+knn_predictions <- as.factor(knn_model)
+
+# Evaluate the model
+true_labels <- rna_data$Class[-train_indices]  # True class labels for testing set
+confusionMatrix(knn_predictions, true_labels)
+
+# Combine the test data with predicted labels
+test_data <- data.frame(PC1 = rna_test[, 1], PC2 = rna_test[, 2], Class = true_labels, Prediction = knn_predictions)
+
+# Plot the data
+ggplot(test_data, aes(x = PC1, y = PC2, color = Prediction)) +
+  geom_point() +
+  labs(title = "k-NN Classification on RNA-seq Data",
+       x = "PC1", y = "PC2") +
+  scale_color_manual(values = c("Positive" = "blue", "Negative" = "red", "Indeterminate" = "green", "NA" = "gray"),
+                     labels = c("Positive", "Negative", "Indeterminate", "NA")) +
+  theme_minimal()
+
+```
+```{r}
+sub_rna_pr <- subset(bc_data, select = c(Patient.ID,PR.status.by.ihc))
+head(sub_rna_pr)
+
+RNAseq_data_pr <- merge(scaled_data, sub_rna_pr, by.x = "X", by.y = "Patient.ID")
+#RNAseq_data_er <- as.data.frame(RNAseq_data_er)
+
+RNAseq_data_pr <- na.omit(RNAseq_data_pr)
+
+
+head(RNAseq_data_pr)
+rna_data_rf_pr <- RNAseq_data_pr[,2:56499]
+er_status <- RNAseq_data_pr$ER.Status.By.IHC
+er_status <- factor(er_status)
+
+# Load required packages
+library(caret)
+library(class)
+library(ggplot2)
+
+# Prepare the data
+rna_data_pr <- rna_data_rf_pr # Remove the first column if it contains row names
+rna_matrix_pr <- as.matrix(rna_data_pr)  # Convert data to a numeric matrix
+rna_data_pr$Class <- as.factor(RNAseq_data_pr$PR.status.by.ihc)  # Convert class column to factor
+
+# Split the data into training and testing sets
+set.seed(123)  # Set seed for reproducibility
+train_percentage <- 0.7  # Specify the percentage of data for training
+train_indices <- createDataPartition(rna_data$Class, p = train_percentage, list = FALSE)
+rna_train <- rna_matrix[train_indices, ]
+rna_test <- rna_matrix[-train_indices, ]
+class_train <- rna_data$Class[train_indices]
+class_train <- as.factor(class_train)
+
+# Perform k-NN classification
+k <- 4  # Set the number of nearest neighbors
+knn_model <- knn(train = rna_train, test = rna_test, cl = class_train, k = k)
+knn_predictions <- as.factor(knn_model)
+
+# Evaluate the model
+true_labels <- rna_data$Class[-train_indices]  # True class labels for testing set
+confusionMatrix(knn_predictions, true_labels)
+
+# Combine the test data with predicted labels
+test_data <- data.frame(PC1 = rna_test[, 1], PC2 = rna_test[, 2], Class = true_labels, Prediction = knn_predictions)
+
+# Plot the data
+ggplot(test_data, aes(x = PC1, y = PC2, color = Prediction)) +
+  geom_point() +
+  labs(title = "k-NN Classification on RNA-seq Data",
+       x = "PC1", y = "PC2") +
+  scale_color_manual(values = c("Positive" = "blue", "Negative" = "red", "Indeterminate" = "green", "NA" = "gray"),
+                     labels = c("Positive", "Negative", "Indeterminate", "NA")) +
+  theme_minimal()
+
+```
+
+
+```{r}
+#rna_data_rf<-scale(rna_data_rf)
+
+# Assuming your RNA-seq data is stored in a variable called 'rna_data'
+
+# Remove the first column (X) as it contains row names
+#rna_data <- rna_data[, -1]
+
+# Convert data to a numeric matrix
+rna_matrix <- as.matrix(rna_data_rf)
+
+# Perform k-means clustering with 3 clusters
+set.seed(123)  # For reproducibility
+k <- 3  # Number of clusters
+kmeans_result <- kmeans(rna_matrix, centers = k)
+
+# Get the cluster assignments for each data point
+cluster_labels <- kmeans_result$cluster
+
+# Visualize the clusters (optional)
+# Example: PCA plot
+library(ggplot2)
+#library(prcomp)
+
+# Perform PCA
+pca <- prcomp(rna_matrix)
+
+# Create a data frame with PCA results and cluster labels
+pca_data <- data.frame(PC1 = pca$x[, 1], PC2 = pca$x[, 2], Cluster = factor(cluster_labels))
+
+# Plot PCA with clusters
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Cluster)) +
+  geom_point() +
+  labs(title = "RNA-seq Data Clustering using k-means (k = 3)")
+
+```
+
+```{r}
+library(factoextra)
+# Generate your data or load your dataset
+data <- rna_data_rf[, 1:4]  # Example with the iris dataset
+
+# Estimate the optimal number of clusters
+res <- fviz_nbclust(data, kmeans, method = "wss")
+
+# Plot the results
+print(res)
+
+```
+
+
+```{r}
+library(caTools)  # Required for the split
+
+set.seed(123)  # Set a seed for reproducibility
+split <- sample.split(er_status, SplitRatio = 0.7)  # Split the data into 70% training and 30% testing
+rna_train <- rna_data_rf[split, ]
+er_train <- er_status[split]
+rna_test <- rna_data_rf[!split, ]
+er_test <- er_status[!split]
+
+```
+
+
+## pca on rna seq
 ```{r}
 bc_data_df <- subset(bc_data, select = c(Patient.ID,Overall.Survival.Status,ER.Status.By.IHC,IHC.HER2,PR.status.by.ihc))
 head(bc_data_df)
@@ -229,6 +617,4 @@ ggplot(pc_scores, aes(x = PC1, y = PC2, color = PR.status.by.ihc)) +
   theme_minimal()
 
 ```
-
-
 
