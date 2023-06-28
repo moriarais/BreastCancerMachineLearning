@@ -15,20 +15,28 @@ library(RColorBrewer)
 library(RColorBrewer)
 library(httr)
 ```
-if its the first time runing the code on your devise:
-drive_auth()
-clinical data
-url="https://drive.google.com/file/d/1sIeLwzRQvszjkUNsefTtVdhS74Y09zbz/view?usp=sharing"
-drive_download(url,overwrite=TRUE)
-Rna seq
-url="https://drive.google.com/file/d/1Ecqg0itgMpaVxuy3lbQt_OHQm77JQpif/view?usp=sharing"
-drive_download(url,overwrite=TRUE)
-mutations
-url="https://drive.google.com/file/d/1165vt_jwnRiXLBHmGyC1XAobGGSPQXRt/view?usp=sharing"
-drive_download(url,overwrite=TRUE)
-url="https://drive.google.com/file/d/1_98OI7FKtb_Ky3lHyh0QwYPt43xYZkF2/view?usp=sharing"
-drive_download(url,overwrite=TRUE)
-rna_seq_data_x<-read.csv(drive_download(url,overwrite=TRUE))
+
+
+## Instructions for running the RNA seq
+
+If it's the first time running the code on your device
+
+```{r}
+# drive_auth()
+# # clinical data
+# url="https://drive.google.com/file/d/1sIeLwzRQvszjkUNsefTtVdhS74Y09zbz/view?usp=sharing"
+# drive_download(url,overwrite=TRUE)
+# # Rna seq
+# url="https://drive.google.com/file/d/1Ecqg0itgMpaVxuy3lbQt_OHQm77JQpif/view?usp=sharing"
+# drive_download(url,overwrite=TRUE)
+# # mutations
+# url="https://drive.google.com/file/d/1165vt_jwnRiXLBHmGyC1XAobGGSPQXRt/view?usp=sharing"
+# drive_download(url,overwrite=TRUE)
+# 
+# url="https://drive.google.com/file/d/1_98OI7FKtb_Ky3lHyh0QwYPt43xYZkF2/view?usp=sharing"
+# drive_download(url,overwrite=TRUE)
+# rna_seq_data_x<-read.csv(drive_download(url,overwrite=TRUE))
+```
 
 brca_tcga_clinical_data.tsv
 ```{r}
