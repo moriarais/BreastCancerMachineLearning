@@ -60,7 +60,12 @@ Breast_cancer$Race.Category
 library(RColorBrewer)
 race_counts <- table(Breast_cancer$Race.Category)
 myPalette <- brewer.pal(length(race_counts), "Set2") 
-pie(race_counts , labels = c("NATIVE","ASIAN","AFRICAN AMERICAN", "CAUCASIAN"), border="white", col=myPalette )
+# Define the labels with precision
+labels <- sprintf("%.2f%%", 100 * race_counts / sum(race_counts))
+# Plot the pie chart with precision labels
+pie(race_counts, labels = labels, border = "white", col = myPalette)
+
+# pie(race_counts , labels = c("NATIVE","ASIAN","AFRICAN AMERICAN", "CAUCASIAN"), border="white", col=myPalette )
 
 sex_counts <- table(Breast_cancer$Sex)
 myPalette <- brewer.pal(length(sex_counts), "Set3") 

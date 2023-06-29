@@ -12,7 +12,7 @@ library(ggplot2)
 library(readr)
 library(googledrive)
 library(RColorBrewer)
-library(RColorBrewer)
+library(dplyr)
 library(httr)
 ```
 
@@ -46,7 +46,7 @@ head(bc_data)
 ```
 scaled_x_rna_seq2.csv
 ```{r}
-#scaled_data <- read.csv("scaled_x_rna_seq2.csv")
+scaled_data <- read.csv("scaled_x_rna_seq2.csv")
 dim(scaled_data)
 head(scaled_data)
 ```
@@ -117,6 +117,7 @@ Breast_cancer %>%
     ylab("Age Count")
 
 Age<-(Breast_cancer$Diagnosis.Age)
+
 Mutation_Count<-(Breast_cancer$Mutation.Count)
 
 plot(Age,Mutation_Count, ylab = "Mutation Count", xlab = "Age", main = "Mutation_Count vs. Age")
