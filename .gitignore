@@ -3,4 +3,5 @@
 *.tsv
 
 *.RData
+*.RDataTmp
 *.Rhistory
