@@ -1,0 +1,52 @@
+---
+title: "desition tree"
+author: "Shira, Moria, Naama"
+date: "2023-07-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(googledrive)
+library(corrplot)
+library(ggplot2)
+library(randomForest)
+library(caret)
+library(readr)
+library(class)
+library(RColorBrewer)
+library(FNN)
+library(cluster)
+library(survival)
+library(survminer)
+library(ggpubr)
+library(dplyr)
+library(httr)
+```
+
+
+```{r}
+Breast_cancer <- read.delim("brca_tcga_clinical_data.tsv")
+head(Breast_cancer)
+```
+
+brca_tcga_clinical_data.tsv
+```{r}
+bc_data<- read.csv("Breast_cancer_staging_V2.csv")
+head(bc_data)
+```
+scaled_x_rna_seq2.csv
+```{r}
+scaled_data <- read.csv("scaled_x_rna_seq2.csv")
+dim(scaled_data)
+head(scaled_data)
+```
+
+
+```{r}
+install.packages("randomForest")
+install.packages("caret")
+
+library(randomForest)
+library(caret)
+```
+
