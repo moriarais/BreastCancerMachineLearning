@@ -1,4 +1,4 @@
-# Ignore csv and other data type files
+# Ignore csv and other data type files.
 *.csv
 *.tsv
 
