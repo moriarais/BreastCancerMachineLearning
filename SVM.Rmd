@@ -23,6 +23,7 @@ library(survminer)
 library(ggpubr)
 library(dplyr)
 library(httr)
+library(data.table)
 ```
 
 ```{r}
@@ -30,21 +31,322 @@ Breast_cancer <- read.delim("brca_tcga_clinical_data.tsv")
 ```
 
 ```{r}
-bc_data<- read.csv("Breast_cancer_staging_V2.csv")
+bc_data<- fread("Breast_cancer_staging_V2.csv")
 head(bc_data)
 ```
 
 
 ```{r}
-scaled_data <- read.csv("scaled_x_rna_seq2.csv")
+scaled_data <- fread("scaled_x_rna_seq2.csv")
 
-y_mutations <- read.csv("y_mutations2.csv")
+y_mutations <- fread("y_mutations2.csv")
 ```
 
 ```{r}
-# Selecting specific columns using subset()
-bc_data_df <- subset(bc_data, select = c(Patient.ID,ER.Status.By.IHC,IHC.HER2,PR.status.by.ihc,Overall.Survival.Status))
+str(scaled_data)
+```
+
+```{r}
+head(bc_data$breast_carcinoma_progesterone_receptor_status.x)
+  
+subtype_df <- subset(bc_data, select =
+                       c(bcr_patient_barcode,subtype_BRCA_Subtype_PAM50,breast_carcinoma_estrogen_receptor_status.x,
+                         breast_carcinoma_progesterone_receptor_status.x,lab_proc_her2_neu_immunohistochemistry_receptor_status.x))
+
+colnames(subtype_df) <- c("id", "subtype", "estrogen_receptor","progesterone_receptor","her2_receptor")
+head(subtype_df)
+```
+
+## pie charts
+
+```{r}
+er <- table(subtype_df$estrogen_receptor)
+myPalette <- brewer.pal(length(er), "Set3") 
+pie(er , labels = names(er), border="white", col=myPalette ,main="ER Status")
+her2 <- table(subtype_df$her2_receptor)
+myPalette <- brewer.pal(length(her2), "Set3") 
+pie(her2 , labels = names(her2), border="white", col=myPalette ,main="HER2 Status")
+pr <- table(subtype_df$progesterone_receptor)
+myPalette <- brewer.pal(length(pr), "Set3") 
+pie(pr , labels = names(pr), border="white", col=myPalette ,main="PR Status")
+types <- table(subtype_df$subtype)
+myPalette <- brewer.pal(length(types), "Set3") 
+pie(types , labels = names(types), border="white", col=myPalette ,main="subtype")
+```
+
+
+
+```{r, warning=FALSE}
+
+subtype_df <- subset(bc_data, select =
+                       c(bcr_patient_barcode,subtype_BRCA_Subtype_PAM50,breast_carcinoma_estrogen_receptor_status.x,
+                         breast_carcinoma_progesterone_receptor_status.x,lab_proc_her2_neu_immunohistochemistry_receptor_status.x))
+
+colnames(subtype_df) <- c("id", "subtype", "estrogen_receptor","progesterone_receptor","her2_receptor")
+head(subtype_df)
+
+
+race_counts <- table(Breast_cancer$Race.Category)
+myPalette <- brewer.pal(length(race_counts), "Set2") 
+pie(race_counts , labels = c("NATIVE","ASIAN","AFRICAN AMERICAN", "CAUCASIAN"), border="white", col=myPalette )
+
+sex_counts <- table(Breast_cancer$Sex)
+myPalette <- brewer.pal(length(sex_counts), "Set3") 
+pie(sex_counts , labels = names(sex_counts), border="white", col=myPalette )
+
+survival_counts <- table(Breast_cancer$Overall.Survival.Status)
+myPalette <- brewer.pal(length(survival_counts), "Set2") 
+pie(survival_counts , labels = c("ALIVE","DEAD"), border="white", col=myPalette )
+
+Menopause <- table(Breast_cancer$Menopause.Status)
+myPalette <- brewer.pal(length(Menopause), "Set3") 
+pie(Menopause , labels = c("Indeterminate","Peri: 6-12 mos","Post : >12 mos","Pre"), border="white", col=myPalette )
+
+```
+
+```{r, warning=FALSE}
+
+Breast_cancer %>% 
+    group_by(Diagnosis.Age) %>%
+    count() %>%
+    ggplot() +
+    geom_col(aes(Diagnosis.Age,n),fill = 'pink')+
+    ggtitle("Age Analysis")+
+    xlab("Age")+
+    ylab("Age Count")
+Age<-(Breast_cancer$Diagnosis.Age)
+Mutation_Count<-(Breast_cancer$Mutation.Count)
+
+#plot(Age,Mutation_Count, ylab = "Mutation Count", xlab = "Age", main = "Mutation_Count vs. Age")
+```
+
+```{r}
+numeric_bc <- Breast_cancer[, c("Mutation.Count", "Fraction.Genome.Altered", "Diagnosis.Age", "Days.to.Sample.Collection.", "Lymph.Node.s..Examined.Number", "Sample.Initial.Weight")]
+# Calculate the correlation matrix
+cor_numeric_bc <- cor(numeric_bc, use = "pairwise.complete.obs")
+# Subset the correlation matrix for variables with missing values
+cor_missing_values <- cor_numeric_bc[, colSums(is.na(numeric_bc)) > 0]
+corrplot(cor_missing_values, method = "square", type = "upper")
+```
+
+Breast_cancer$Neoplasm.American....
+Breast_cancer$Patient.Primary.Tumor.Site
+Breast_cancer$Patient.Metastatic.Sites
+Breast_cancer$Cancer.Type.Detailed
+Breast_cancer$Prior.Cancer.Diagnosis.Occurence
+Breast_cancer$Surgical.procedure.first
+Breast_cancer$Disease.Surgical.Margin.Status
+Breast_cancer$Menopause.Status
+
+Breast_cancer$Sex
+Breast_cancer$Race.Category
+
+## survival plots
+```{r}
+data_bc_filtered <- Breast_cancer
+data_bc_filtered$Vital_status <- ifelse(data_bc_filtered$Overall.Survival.Status == "0:LIVING", 0, 1)
+
+# Specify the correct column names for time and status in the Surv() function
+fit <- survfit(Surv(Overall.Survival..Months., Vital_status) ~ Sex, data = data_bc_filtered)
+
+# Create a new plot with survival curves for high and low expression
+g <- ggsurvplot(fit, data = data_bc_filtered, risk.table = FALSE, pval = TRUE,
+                risk.table.y.text = FALSE, risk.table.height = 0.3,
+                palette = c("#2E9FDF", "purple"), conf.int = TRUE,
+                xlab = "Time from Diagnosis (months)",
+                ylab = "Proportion Survival",
+                font.x = c(17, "bold", "black"),
+                font.y = c(17, "bold", "black"),
+                font.tickslab = c(17, "bold", "black"),
+                legend = c(0.89, 0.89),
+                title = "Survival\n")
+
+# Display the survival plot
+g
+
+```
+
+```{r}
+tmp <- y_mutations[, c("X", "TP53")]
+tmp2<-Breast_cancer[,c("Patient.ID","Overall.Survival.Status","Overall.Survival..Months.")]
+tmp2$Overall.Survival.Status<- ifelse(tmp2$Overall.Survival.Status == "0:LIVING", 0, 1)
+tail(tmp2)
+colnames(tmp) <- c("Patient.ID", "TP53")
+head(tmp)
+```
+
+```{r}
+tp53_data<-(merge(tmp2, tmp, by= "Patient.ID"))
+
+# Specify the correct column names for time and status in the Surv() function
+fit <- survfit(Surv(Overall.Survival..Months., Overall.Survival.Status) ~ TP53, data = tp53_data)
+
+# Create a new plot with survival curves for high and low expression
+g <- ggsurvplot(fit, data = tp53_data, risk.table = FALSE, pval = TRUE,
+                risk.table.y.text = FALSE, risk.table.height = 0.3,
+                palette = c("#2E9FDF", "purple"), conf.int = TRUE,
+                xlab = "Time from Diagnosis (months)",
+                ylab = "Proportion Survival",
+                font.x = c(17, "bold", "black"),
+                font.y = c(17, "bold", "black"),
+                font.tickslab = c(17, "bold", "black"),
+                legend = c(0.89, 0.89),
+                title = "Survival\n")
+
+# Display the survival plot
+g
+
+```
+
+```{r}
+tmp <- subtype_df[, c("id", "subtype")]
+tmp2<-Breast_cancer[,c("Patient.ID","Overall.Survival.Status","Overall.Survival..Months.")]
+tmp2$Overall.Survival.Status<- ifelse(tmp2$Overall.Survival.Status == "0:LIVING", 0, 1)
+
+head(tmp)
+colnames(tmp2) <- c("id", "Survival_Status", "Survival_Months")
+subtype_alive_data<-(merge(tmp2, tmp, by= "id"))
+head(subtype_alive_data)
+# Specify the correct column names for time and status in the Surv() function
+fit <- survfit(Surv(Survival_Months, Survival_Status) ~ subtype, data = subtype_alive_data)
+
+# Create a new plot with survival curves for high and low expression
+g <- ggsurvplot(fit, data = subtype_alive_data, risk.table = FALSE, pval = TRUE,
+                risk.table.y.text = FALSE, risk.table.height = 0.3,
+                palette = c("#2E9FDF", "purple", "green", "yellow","red"), conf.int = TRUE,
+                xlab = "Time from Diagnosis (months)",
+                ylab = "Proportion Survival",
+                font.x = c(17, "bold", "black"),
+                font.y = c(17, "bold", "black"),
+                font.tickslab = c(17, "bold", "black"),
+                legend = c(0.89, 0.89),
+                title = "Survival\n")
+
+# Display the survival plot
+g
+```
+
+```{r}
+RNAseq_data_survival <- merge(scaled_data, subset(Breast_cancer, select = c(Patient.ID,Overall.Survival.Status)), by.x = "X", by.y = "Patient.ID")
+RNAseq_data_survival <- na.omit(RNAseq_data_survival)
+
+head(RNAseq_data_survival)
+data_rna_survival <- RNAseq_data_survival[,2:56500]
+head(colnames(data_rna_survival))
+```
+
+## PCA on y_mutation data and scaled rna seq
+mereged mutation data
+```{r}
+bc_data_df <- subset(subtype_df, select = colnames(subtype_df))
 head(bc_data_df)
+mutation_data <- merge(y_mutations, bc_data_df, by.x = "X", by.y = "id")
+head(mutation_data)
+data_x_y<-merge(mutation_data, scaled_data, by.x = "X", by.y = "X")
+```
+
+```{r}
+tail(colnames(data_x_y))
+data_x_y_pca <- data_x_y[, !(names(data_x_y) %in% c("X","subtype","estrogen_receptor","progesterone_receptor","her2_receptor"))]
+```
+
+```{r}
+standardized_data_XY <- scale(data_x_y_pca[, -ncol(data_x_y_pca)])
+pca_result_XY <- prcomp(standardized_data_XY)
+pc_scores_XY <- as.data.frame(pca_result_XY$x)
+```
+
+```{r}
+tail(colnames(mutation_data))
+pc_scores_XY$subtype <- factor(mutation_data$subtype)
+pc_scores_XY$ER.Status.By.IHC <- factor(mutation_data$estrogen_receptor)
+pc_scores_XY$IHC.HER2 <- factor(mutation_data$her2_receptor)
+pc_scores_XY$PR.status.by.ihc <- factor(mutation_data$progesterone_receptor)
+```
+
+
+```{r}
+ggplot(pc_scores_XY, aes(x = PC1, y = PC2, color = subtype)) +
+  geom_point() +
+  labs(title = "PCA Plot - subtype") +
+  xlab("PC1") +
+  ylab("PC2") +
+  theme_minimal()
+
+ggplot(pc_scores_XY, aes(x = PC1, y = PC2, color = ER.Status.By.IHC)) +
+  geom_point() +
+  labs(title = "PCA Plot - ER Status By IHC") +
+  xlab("PC1") +
+  ylab("PC2") +
+  theme_minimal()
+
+ggplot(pc_scores_XY, aes(x = PC1, y = PC2, color = IHC.HER2)) +
+  geom_point() +
+  labs(title = "PCA Plot - IHC HER2") +
+  xlab("PC1") +
+  ylab("PC2") +
+  theme_minimal()
+
+ggplot(pc_scores_XY, aes(x = PC1, y = PC2, color = PR.status.by.ihc)) +
+  geom_point() +
+  labs(title = "PCA Plot - PR Status By IHC") +
+  xlab("PC1") +
+  ylab("PC2") +
+  theme_minimal()
+
+```
+
+## PCA - on mutation
+```{r}
+bc_data_df <- subset(subtype_df, select = colnames(subtype_df))
+head(bc_data_df)
+mutation_data <- merge(y_mutations, bc_data_df, by.x = "X", by.y = "id")
+head(mutation_data)
+```
+
+```{r}
+pca_data_y <- mutation_data[, c(colnames(mutation_data)[2:45])]
+standardized_data_y <- scale(pca_data_y[, -ncol(pca_data_y)])
+pca_result_y <- prcomp(standardized_data_y)
+pc_scores_y <- as.data.frame(pca_result_y$x)
+```
+
+```{r}
+pc_scores_y$subtype <- factor(mutation_data$subtype)
+pc_scores_y$estrogen_receptor <- factor(mutation_data$estrogen_receptor)
+pc_scores_y$her2_receptor <- factor(mutation_data$her2_receptor)
+pc_scores_y$progesterone_receptor <- factor(mutation_data$progesterone_receptor)
+```
+
+```{r}
+ggplot(pc_scores_y, aes(x = PC1, y = PC2, color = subtype)) +
+  geom_point() +
+  labs(title = "PCA Plot - Overall Survival Status") +
+  xlab("PC1") +
+  ylab("PC2") +
+  theme_minimal()
+
+ggplot(pc_scores_y, aes(x = PC1, y = PC2, color = estrogen_receptor)) +
+  geom_point() +
+  labs(title = "PCA Plot - ER Status By IHC") +
+  xlab("PC1") +
+  ylab("PC2") +
+  theme_minimal()
+
+ggplot(pc_scores_y, aes(x = PC1, y = PC2, color = her2_receptor)) +
+  geom_point() +
+  labs(title = "PCA Plot - IHC HER2") +
+  xlab("PC1") +
+  ylab("PC2") +
+  theme_minimal()
+
+ggplot(pc_scores_y, aes(x = PC1, y = PC2, color = progesterone_receptor)) +
+  geom_point() +
+  labs(title = "PCA Plot - PR Status By IHC") +
+  xlab("PC1") +
+  ylab("PC2") +
+  theme_minimal()
+
 ```
 
 ```{r}
@@ -56,21 +358,28 @@ id_summaries <- rowSums(y_mutations[, -1])
 barplot(table(id_summaries), main = "Frequency", xlab = "Number of mutation", ylab = "Count")
 ```
 
+
 ```{r}
-sub_rna <- subset(bc_data, select = c(Patient.ID,ER.Status.By.IHC))
+sub_rna <- subset(subtype_df, select = c(id,subtype))
 head(sub_rna)
 
-RNAseq_data_er <- merge(scaled_data, sub_rna, by.x = "X", by.y = "Patient.ID")
-#RNAseq_data_er <- as.data.frame(RNAseq_data_er)
+RNAseq_data_subtype <- merge(scaled_data, sub_rna, by.x = "X", by.y = "id")
 
-RNAseq_data_er <- na.omit(RNAseq_data_er)
+RNAseq_data_subtype <- na.omit(RNAseq_data_subtype)
 
-
-head(RNAseq_data_er)
-
-rna_matrix <- as.matrix(rna_data_rf)
+rna_data_rf<- RNAseq_data_subtype[,2:56499]
+subtype_status<-factor(RNAseq_data_subtype$subtype)
 
 ```
+
+```{r}
+
+unique((RNAseq_data_subtype$subtype))
+rna_matrix <- as.matrix(rna_data_rf)
+```
+
+
+## SVM 
 
 ```{r}
 
