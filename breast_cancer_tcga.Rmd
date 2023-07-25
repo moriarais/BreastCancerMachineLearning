@@ -28,28 +28,27 @@ library(httr)
 
 ```{r}
 
-# If its the first time runing the code on your devise: 
-drive_auth()
-
-# clinical data
-url="https://drive.google.com/file/d/1sIeLwzRQvszjkUNsefTtVdhS74Y09zbz/view?usp=sharing"
-drive_download(url,overwrite=TRUE)
-
-# Rna seq
-url="https://drive.google.com/file/d/1Ecqg0itgMpaVxuy3lbQt_OHQm77JQpif/view?usp=sharing"
-drive_download(url,overwrite=TRUE)
-
-# mutations
-url="https://drive.google.com/file/d/1165vt_jwnRiXLBHmGyC1XAobGGSPQXRt/view?usp=sharing"
-drive_download(url,overwrite=TRUE)
-
-url="https://drive.google.com/file/d/1_98OI7FKtb_Ky3lHyh0QwYPt43xYZkF2/view?usp=sharing"
-drive_download(url,overwrite=TRUE)
-
-
-url="https://drive.google.com/file/d/10tB0PeVkCKiTa85e1Ynnq1rTHvt68lGJ/view?usp=sharing"
-drive_auth()
-Breast_cancer <- read_delim("brca_tcga_clinical_data.tsv", sep = "\t")
+# # If its the first time runing the code on your devise: 
+# drive_auth()
+# 
+# # clinical data
+# url="https://drive.google.com/file/d/1sIeLwzRQvszjkUNsefTtVdhS74Y09zbz/view?usp=sharing"
+# drive_download(url,overwrite=TRUE)
+# 
+# # Rna seq
+# url="https://drive.google.com/file/d/1Ecqg0itgMpaVxuy3lbQt_OHQm77JQpif/view?usp=sharing"
+# drive_download(url,overwrite=TRUE)
+# 
+# # mutations
+# url="https://drive.google.com/file/d/1165vt_jwnRiXLBHmGyC1XAobGGSPQXRt/view?usp=sharing"
+# drive_download(url,overwrite=TRUE)
+# 
+# url="https://drive.google.com/file/d/1_98OI7FKtb_Ky3lHyh0QwYPt43xYZkF2/view?usp=sharing"
+# drive_download(url,overwrite=TRUE)
+# 
+# 
+# url="https://drive.google.com/file/d/10tB0PeVkCKiTa85e1Ynnq1rTHvt68lGJ/view?usp=sharing"
+# drive_auth()
 ```
 
 ```{r}
