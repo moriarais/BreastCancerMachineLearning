@@ -1,6 +1,6 @@
 # Ignore csv and other data type files.
-**.csv
-**.tsv
+*.csv
+*.tsv
 
 *.RData
 *.RDataTmp
