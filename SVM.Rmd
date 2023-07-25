@@ -1,29 +1,52 @@
 ---
-title: "SVM"
+title: "SVM",
+author: "Shira, Moria, Naama"
 output: pdf_document
 date: "2023-07-22"
 ---
 
+## Libraries
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+library(googledrive)
+library(corrplot)
+library(ggplot2)
+library(randomForest)
+library(caret)
+library(readr)
+library(class)
+library(RColorBrewer)
+library(FNN)
+library(cluster)
+library(survival)
+library(survminer)
+library(ggpubr)
+library(dplyr)
+library(httr)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r}
+Breast_cancer <- read.delim("brca_tcga_clinical_data.tsv")
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+bc_data<- read.csv("Breast_cancer_staging_V2.csv")
+head(bc_data)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+scaled_data <- read.csv("scaled_x_rna_seq2.csv")
+
+y_mutations <- read.csv("y_mutations2.csv")
+```
+
+```{r}
+gene_summaries <- colSums(y_mutations[, -1])
+gene_summaries
+
+id_summaries <- rowSums(y_mutations[, -1])
+# Create the bar plot
+barplot(table(id_summaries), main = "Frequency", xlab = "Number of mutation", ylab = "Count")
+```
+

@@ -475,7 +475,7 @@ print(paste("Accuracy:", accuracy))
 # Plot the confusion matrix
 table(test_labels, rf_predictions)
 ```
-##ER kmeans with rna seq 
+## ER kmeans with rna seq 
 ```{r}
 #subtype_df$
 sub_rna <- subset(subtype_df, select = c(id,estrogen_receptor))
@@ -529,7 +529,7 @@ ggplot(pca_data, aes(x = PC1, y = PC2, color = Class, shape = Cluster)) +
 
 ```
 
-##PR kmeans and rna seq 
+## PR kmeans and rna seq 
 ```{r}
 sub_rna <- subset(subtype_df, select = c(id,progesterone_receptor))
 head(sub_rna)
