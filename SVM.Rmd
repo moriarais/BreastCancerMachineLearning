@@ -42,11 +42,66 @@ y_mutations <- read.csv("y_mutations2.csv")
 ```
 
 ```{r}
+# Selecting specific columns using subset()
+bc_data_df <- subset(bc_data, select = c(Patient.ID,ER.Status.By.IHC,IHC.HER2,PR.status.by.ihc,Overall.Survival.Status))
+head(bc_data_df)
+```
+
+```{r}
 gene_summaries <- colSums(y_mutations[, -1])
 gene_summaries
 
 id_summaries <- rowSums(y_mutations[, -1])
 # Create the bar plot
 barplot(table(id_summaries), main = "Frequency", xlab = "Number of mutation", ylab = "Count")
+```
+
+```{r}
+sub_rna <- subset(bc_data, select = c(Patient.ID,ER.Status.By.IHC))
+head(sub_rna)
+
+RNAseq_data_er <- merge(scaled_data, sub_rna, by.x = "X", by.y = "Patient.ID")
+#RNAseq_data_er <- as.data.frame(RNAseq_data_er)
+
+RNAseq_data_er <- na.omit(RNAseq_data_er)
+
+
+head(RNAseq_data_er)
+
+rna_matrix <- as.matrix(rna_data_rf)
+
+```
+
+```{r}
+
+# Split the data into training and testing sets (you may need to install the 'caret' package for this)
+library(caret)
+set.seed(123) # For reproducibility
+index <- createDataPartition(class_labels, p = 0.7, list = FALSE)
+train_data <- rna_matrix[index, ]
+test_data <- rna_matrix[-index, ]
+train_labels <- class_labels[index]
+test_labels <- class_labels[-index]
+
+# Train the SVM model
+library(e1071) # Load the package for SVM
+svm_model <- svm(train_data, train_labels)
+
+# Predict on the test data
+svm_pred <- predict(svm_model, test_data)
+
+# Create a data frame with PCA results, SVM predicted labels, and true class labels
+svm_data <- data.frame(PC1 = pca$x[-index, 1], PC2 = pca$x[-index, 2], Predicted_Class = factor(svm_pred), Class = factor(test_labels))
+
+# Define colors for the class labels
+class_colors <- c("Positive" = "blue", "Negative" = "red", "NA" = "green", "Indeterminate" = "orange")
+
+# Plot PCA with SVM predicted labels and true class labels
+ggplot(svm_data, aes(x = PC1, y = PC2, color = Class, shape = Predicted_Class)) +
+  geom_point() +
+  labs(title = "RNA-seq Data Classification using SVM") +
+  scale_color_manual(values = class_colors) +
+  guides(shape = guide_legend(title = "SVM Predicted Class"), color = guide_legend(title = "True Class"))
+
 ```
 

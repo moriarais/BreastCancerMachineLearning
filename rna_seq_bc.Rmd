@@ -348,7 +348,8 @@ id_summaries <- rowSums(y_mutations[, -1])
 # Create the bar plot
 barplot(table(id_summaries), main = "Frequency", xlab = "Number of mutation", ylab = "Count")
 ```
-##ER statuse and rna seq 
+
+## ER status and rna seq 
 ```{r}
 sub_rna <- subset(bc_data, select = c(Patient.ID,ER.Status.By.IHC))
 head(sub_rna)
@@ -363,8 +364,6 @@ head(RNAseq_data_er)
 rna_data_rf <- RNAseq_data_er[,2:56499]
 er_status <- RNAseq_data_er$ER.Status.By.IHC
 er_status <- factor(er_status)
-
-
 
 ```
 
