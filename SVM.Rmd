@@ -66,6 +66,16 @@ head(RNAseq_data_survival)
 data_rna_survival <- RNAseq_data_survival[,2:56500]
 head(colnames(data_rna_survival))
 ```
+```{r}
+sub_rna <- subset(subtype_df, select = c(id,subtype))
+head(sub_rna)
+
+RNAseq_data_subtype <- merge(scaled_data, sub_rna, by.x = "X", by.y = "id")
+
+RNAseq_data_subtype <- na.omit(RNAseq_data_subtype)
+
+rna_data_rf<- RNAseq_data_subtype[,2:56499]
+```
 
 
 ## SVM 
@@ -75,6 +85,7 @@ head(colnames(data_rna_survival))
 # Split the data into training and testing sets (you may need to install the 'caret' package for this)
 library(caret)
 set.seed(123) # For reproducibility
+class_labels <- RNAseq_data_subtype$subtype
 index <- createDataPartition(class_labels, p = 0.7, list = FALSE)
 train_data <- rna_matrix[index, ]
 test_data <- rna_matrix[-index, ]
