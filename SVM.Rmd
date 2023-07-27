@@ -81,6 +81,7 @@ rna_data_rf<- RNAseq_data_subtype[,2:56499]
 ## SVM 
 
 ```{r}
+rna_matrix <- as.matrix(rna_data_rf)
 
 # Split the data into training and testing sets (you may need to install the 'caret' package for this)
 library(caret)
