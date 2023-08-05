@@ -1,10 +1,9 @@
 ---
-title: "SVM",
+title: "RNAseq"
 author: "Shira, Moria, Naama"
-output: pdf_document
-date: "2023-07-22"
+date: "2023-06-22"
+output: html_document
 ---
-
 ## Libraries
 
 ```{r setup, include=FALSE}
@@ -25,27 +24,73 @@ library(dplyr)
 library(httr)
 ```
 
+## For first time, please uncomment the following code and run:
+
+```{r}
+
+# # If its the first time runing the code on your devise: 
+# drive_auth()
+# 
+# # clinical data
+# url="https://drive.google.com/file/d/1sIeLwzRQvszjkUNsefTtVdhS74Y09zbz/view?usp=sharing"
+# drive_download(url,overwrite=TRUE)
+# 
+# # Rna seq
+# url="https://drive.google.com/file/d/1Ecqg0itgMpaVxuy3lbQt_OHQm77JQpif/view?usp=sharing"
+# drive_download(url,overwrite=TRUE)
+# 
+# # mutations
+# url="https://drive.google.com/file/d/1165vt_jwnRiXLBHmGyC1XAobGGSPQXRt/view?usp=sharing"
+# drive_download(url,overwrite=TRUE)
+# 
+# url="https://drive.google.com/file/d/1_98OI7FKtb_Ky3lHyh0QwYPt43xYZkF2/view?usp=sharing"
+# drive_download(url,overwrite=TRUE)
+# 
+# 
+# url="https://drive.google.com/file/d/10tB0PeVkCKiTa85e1Ynnq1rTHvt68lGJ/view?usp=sharing"
+# drive_auth()
+```
+
+## Clinical Data
+## brca_tcga_clinical_data.tsv
+
 ```{r}
 Breast_cancer <- read.delim("brca_tcga_clinical_data.tsv")
 ```
 
+## Examinations from the experiments 
+## Breast_cancer_staging_V2.csv
+
 ```{r}
-bc_data<- read.csv("Breast_cancer_staging_V2.csv")
+bc_data <- read.csv("Breast_cancer_staging_V2.csv")
 head(bc_data)
 ```
 
+## Normalized RNA sequencing
+## scaled_x_rna_seq2.csv
 
-```{r message=TRUE, warning=TRUE}
+```{r}
 scaled_data <- read.csv("scaled_x_rna_seq2.csv")
+dim(scaled_data)
+head(scaled_data)
+```
+
+```{r}
+# Printing the features (column names)
+features <- colnames(bc_data)
+print(features)
 ```
 
 
-```{r message=TRUE, warning=TRUE}
+## Mutations Types
+## y_mutations
+
+```{r}
 y_mutations <- read.csv("y_mutations2.csv")
+dim(y_mutations)
+head(y_mutations)
 ```
-
-
-
+# bc_data_df from the file:Breast_cancer_staging_V2.csv
 ```{r}
 head(bc_data$breast_carcinoma_progesterone_receptor_status.x)
   
@@ -59,59 +104,70 @@ head(subtype_df)
 
 ```{r}
 
-RNAseq_data_survival <- merge(scaled_data, subset(Breast_cancer, select = c(Patient.ID,Overall.Survival.Status)), by.x = "X", by.y = "Patient.ID")
-RNAseq_data_survival <- na.omit(RNAseq_data_survival)
-
-head(RNAseq_data_survival)
-data_rna_survival <- RNAseq_data_survival[,2:56500]
-head(colnames(data_rna_survival))
-```
-```{r}
-sub_rna <- subset(subtype_df, select = c(id,subtype))
+sub_rna <- subset(subtype_df, select = c(id,progesterone_receptor))
 head(sub_rna)
 
-RNAseq_data_subtype <- merge(scaled_data, sub_rna, by.x = "X", by.y = "id")
+RNAseq_data_pr <- merge(scaled_data, sub_rna, by.x = "X", by.y = "id")
 
-RNAseq_data_subtype <- na.omit(RNAseq_data_subtype)
+RNAseq_data_pr <- na.omit(RNAseq_data_pr)
 
-rna_data_rf<- RNAseq_data_subtype[,2:56499]
+head(RNAseq_data_pr)
+rna_data_rf<- RNAseq_data_pr[,2:56499]
+pr_status <- RNAseq_data_pr$progesterone_receptor
+pr_status <- factor(pr_status)
+```
+
+## SVM
+
+```{r}
+
+rna_matrix <- as.matrix(rna_data_rf)
+
+set.seed(123) # For reproducibility
+
+# Convert class labels to factor if they are not already
+class_labels <- factor(RNAseq_data_subtype$subtype)
+
+# Split the data into training and testing sets
+set.seed(123)  # For reproducibility
+train_indices <- sample(1:nrow(rna_matrix), nrow(rna_matrix) * 0.7)  # 70% for training
+train_data <- rna_matrix[train_indices, ]
+train_labels <- class_labels[train_indices]
+test_data <- rna_matrix[-train_indices, ]
+test_labels <- class_labels[-train_indices]
+
 ```
 
 
-## SVM 
-
 ```{r}
-rna_matrix <- as.matrix(rna_data_rf)
-
-# Split the data into training and testing sets (you may need to install the 'caret' package for this)
-library(caret)
-set.seed(123) # For reproducibility
-class_labels <- RNAseq_data_subtype$subtype
-index <- createDataPartition(class_labels, p = 0.7, list = FALSE)
-train_data <- rna_matrix[index, ]
-test_data <- rna_matrix[-index, ]
-train_labels <- class_labels[index]
-test_labels <- class_labels[-index]
+# Train the SVM model
+library(e1071)
 
 # Train the SVM model
-library(e1071) # Load the package for SVM
 svm_model <- svm(train_data, train_labels)
 
 # Predict on the test data
 svm_pred <- predict(svm_model, test_data)
 
-# Create a data frame with PCA results, SVM predicted labels, and true class labels
-svm_data <- data.frame(PC1 = pca$x[-index, 1], PC2 = pca$x[-index, 2], Predicted_Class = factor(svm_pred), Class = factor(test_labels))
+```
 
-# Define colors for the class labels
-class_colors <- c("Positive" = "blue", "Negative" = "red", "NA" = "green", "Indeterminate" = "orange")
+```{r}
+# Calculate accuracy
+accuracy <- sum(svm_pred == test_labels) / length(test_labels)
+print(paste("Accuracy:", accuracy))
 
-# Plot PCA with SVM predicted labels and true class labels
-ggplot(svm_data, aes(x = PC1, y = PC2, color = Class, shape = Predicted_Class)) +
-  geom_point() +
-  labs(title = "RNA-seq Data Classification using SVM") +
-  scale_color_manual(values = class_colors) +
-  guides(shape = guide_legend(title = "SVM Predicted Class"), color = guide_legend(title = "True Class"))
+```
+
+
+```{r}
+
+precision <- confusionMatrix(svm_pred, test_labels)$byClass["Pos Pred Value"]
+recall <- confusionMatrix(svm_pred, test_labels)$byClass["Sens"]
+f1_score <- confusionMatrix(svm_pred, test_labels)$byClass["F1"]
+
+print(paste("Precision:", precision))
+print(paste("Recall:", recall))
+print(paste("F1-score:", f1_score))
 
 ```
 

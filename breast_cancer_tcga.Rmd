@@ -384,6 +384,7 @@ id_summaries <- rowSums(y_mutations[, -1])
 # Create the bar plot
 barplot(table(id_summaries), main = "Frequency", xlab = "Number of mutation", ylab = "Count")
 ```
+
 ```{r}
 sub_rna <- subset(subtype_df, select = c(id,subtype))
 head(sub_rna)
@@ -396,6 +397,7 @@ rna_data_rf<- RNAseq_data_subtype[,2:56499]
 subtype_status<-factor(RNAseq_data_subtype$subtype)
 
 ```
+
 ```{r}
 
 unique((RNAseq_data_subtype$subtype))
