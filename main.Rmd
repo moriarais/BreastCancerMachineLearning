@@ -1,0 +1,92 @@
+
+```{r setup, include=FALSE}
+library(googledrive)
+library(corrplot)
+library(ggplot2)
+library(randomForest)
+library(caret)
+library(readr)
+library(class)
+library(RColorBrewer)
+library(FNN)
+library(cluster)
+library(survival)
+library(survminer)
+library(ggpubr)
+library(dplyr)
+library(httr)
+library(data.table)
+```
+
+
+```{r}
+bc_data<- read.csv("Breast_cancer_staging_V2.csv")
+dim(bc_data)
+head(bc_data)
+bc_data$sy
+
+```
+```{r}
+Breast_cancer <- read.delim("brca_tcga_clinical_data.tsv")
+dim(Breast_cancer)
+head(Breast_cancer)
+```
+```{r}
+
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+
+```{r}
+
+#scaled_data <- read.csv("scaled_x_rna_seq2.csv")
+dim(scaled_data)
+# head(scaled_data)
+colnames(scaled_data)[colnames(scaled_data) == "X"] ="bcr_patient_barcode"
+head(scaled_data)
+```
+
+
+
+```{r}
+#Prepare the data to the algorithms (the rna-seq data)
+ids_with_subtype <- subset( bc_data, select = c(bcr_patient_barcode,subtype_BRCA_Subtype_PAM50))
+rna_with_subtype_data <- (merge(scaled_data , bc_data, by= "bcr_patient_barcode"))
+
+```
+
+#NEED TO CHECK NULLS
+
+```{r}
+
+#rna_matrix <- as.matrix(scaled_data)
+rna_matrix <- scaled_data
+
+# Convert class labels to factor if they are not already
+class_labels <- factor(rna_with_subtype_data$subtype_BRCA_Subtype_PAM50)
+
+# Split the data into training and testing sets
+set.seed(123)  # For reproducibility
+train_indices <- sample(1:nrow(rna_matrix), nrow(rna_matrix) * 0.7)  # 70% for training
+train_data <- rna_matrix[train_indices, ]
+train_labels <- class_labels[train_indices]
+test_data <- rna_matrix[-train_indices, ]
+test_labels <- class_labels[-train_indices]
+
+```
+
+
+
+
