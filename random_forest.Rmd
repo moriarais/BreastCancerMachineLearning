@@ -1,10 +1,332 @@
----
-title: "Breast cancer - Random Forest"
-output: pdf_document
-date: "2023-06-29"
----
+```{r}
+#install.packages("ranger")
+library(ranger)
+library(googledrive)
+library(corrplot)
+library(ggplot2)
+library(randomForest)
+library(caret)
+library(readr)
+library(class)
+library(RColorBrewer)
+library(FNN)
+library(cluster)
+library(survival)
+library(survminer)
+library(ggpubr)
+library(dplyr)
+library(httr)
+library(data.table)
+```
+
 
 ```{r}
-print ("hi")
+
+Breast_cancer <- read.delim("brca_tcga_clinical_data.tsv")
+dim(Breast_cancer)
+
+bc_data<- read.csv("Breast_cancer_staging_V2.csv")
+dim(bc_data)
+head(bc_data)
+
+#scaled_data <- fread("scaled_x_rna_seq2.csv")
+#rownames(scaled_data) <- scaled_data[[1]]
+#scaled_data <- scaled_data[,-1]
+
+scaled_data <- read.csv("scaled_x_rna_seq2.csv")
+dim(scaled_data)
+head(scaled_data)
+
+y_mutations <- read.csv("y_mutations2.csv")
+dim(y_mutations)
+head(y_mutations)
 ```
+
+
+```{r}
+head(bc_data$breast_carcinoma_progesterone_receptor_status.x)
+  
+subtype_df <- subset(bc_data, select =
+                       c(bcr_patient_barcode,subtype_BRCA_Subtype_PAM50,breast_carcinoma_estrogen_receptor_status.x,
+                         breast_carcinoma_progesterone_receptor_status.x,lab_proc_her2_neu_immunohistochemistry_receptor_status.x))
+
+colnames(subtype_df) <- c("id", "subtype", "estrogen_receptor","progesterone_receptor","her2_receptor")
+head(subtype_df)
+```
+```{r}
+
+colnames(subtype_df) <- c("id", "subtype", "estrogen_receptor","progesterone_receptor","her2_receptor")
+head(subtype_df)
+```
+
+
+```{r}
+RNAseq_data_survival <- merge(scaled_data, subset(Breast_cancer, select = c(Patient.ID,Overall.Survival.Status)), by.x = "X", by.y = "Patient.ID")
+RNAseq_data_survival <- na.omit(RNAseq_data_survival)
+
+head(RNAseq_data_survival)
+data_rna_survival <- RNAseq_data_survival[,2:56500]
+head(colnames(data_rna_survival))
+```
+```{r}
+sub_rna <- subset(subtype_df, select = c(id,subtype))
+head(sub_rna)
+
+RNAseq_data_subtype <- merge(scaled_data, sub_rna, by.x = "X", by.y = "id")
+
+RNAseq_data_subtype <- na.omit(RNAseq_data_subtype)
+
+rna_data_rf<- RNAseq_data_subtype[,2:56499]
+subtype_status<-factor(RNAseq_data_subtype$subtype)
+```
+```{r}
+# Perform k-NN clustering with 4 clusters
+
+unique((RNAseq_data_subtype$subtype))
+rna_matrix <- as.matrix(rna_data_rf)
+class_labels <- RNAseq_data_subtype$subtype
+# Perform k-means clustering with 3 clusters
+set.seed(123)  # For reproducibility
+k <- 4 # Number of clusters
+#kmeans_result <- kmeans(rna_matrix, centers = k)
+knn_result <- knn(rna_matrix, rna_matrix, cl = class_labels, k = k)
+# Get the cluster assignments for each data point
+
+cluster_labels <- knn_result
+# Assuming 'Class' column is a factor
+class_labels <- RNAseq_data_subtype$subtype
+
+library(ggplot2)
+
+# Perform PCA
+pca <- prcomp(rna_matrix)
+
+# Create a data frame with PCA results, cluster labels, and class labels
+pca_data <- data.frame(PC1 = pca$x[, 1], PC2 = pca$x[, 2], Cluster = factor(cluster_labels), Class = factor(class_labels))
+
+# Plot PCA with clusters and class labels
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Class, shape = Cluster)) +
+  geom_point() +
+  labs(title = "RNA-seq Data Clustering using knn (k = 4)") +
+  #scale_color_manual(values = class_colors) +
+  guides(shape = guide_legend(title = "Cluster"), color = guide_legend(title = "Class"))
+```
+
+```{r}
+# Convert class labels to factor if they are not already
+class_labels <- factor(RNAseq_data_subtype$subtype)
+
+# Split the data into training and testing sets
+set.seed(123)  # For reproducibility
+train_indices <- sample(1:nrow(rna_matrix), nrow(rna_matrix) * 0.7)  # 70% for training
+train_data <- rna_matrix[train_indices, ]
+train_labels <- class_labels[train_indices]
+test_data <- rna_matrix[-train_indices, ]
+test_labels <- class_labels[-train_indices]
+
+# Train the Random Forest model
+rf_model <- randomForest(train_data, train_labels, ntree = 100)
+
+# Make predictions on the test data
+rf_predictions <- predict(rf_model, test_data)
+
+# Calculate the accuracy of the model
+accuracy <- sum(rf_predictions == test_labels) / length(test_labels)
+print(paste("Accuracy:", accuracy))
+
+# Plot the confusion matrix
+table(test_labels, rf_predictions)
+```
+
+
+```{r}
+transposed_rna_data <- t(rna_matrix)
+
+length (y)
+dim (rna_matrix)
+dim(transposed_rna_data)
+
+```
+
+
+
+
+```{r}
+start_time <- Sys.time()
+
+# Convert class labels to factor if they are not already
+class_labels <- factor(RNAseq_data_subtype$subtype)
+
+# Split the data into training and testing sets
+set.seed(123)  # For reproducibility
+train_indices <- sample(1:nrow(rna_matrix), nrow(rna_matrix) * 0.7)  # 70% for training
+train_data <- rna_matrix[train_indices, ]
+train_labels <- class_labels[train_indices]
+test_data <- rna_matrix[-train_indices, ]
+test_labels <- class_labels[-train_indices]
+
+# Train the Random Forest model
+rf_model <- randomForest(train_data, train_labels, ntree = 500)
+
+# Make predictions on the test data
+rf_predictions <- predict(rf_model, test_data)
+
+# Calculate the accuracy of the model
+accuracy <- sum(rf_predictions == test_labels) / length(test_labels)
+print(paste("Accuracy:", accuracy))
+
+# Plot the confusion matrix
+table(test_labels, rf_predictions)
+
+end_time <- Sys.time()
+time_taken <- end_time - start_time
+print(time_taken)
+
+```
+
+```{r}
+#כנראה טעותתתתת
+###לקחתי את ה100 הכי משפיעים וקיבלתי אומנם אקיורסי קצת יותר נמוך אבל תוך 3 שניות ולא 20 דקות
+start_time <- Sys.time()
+
+# Convert class labels to factor if they are not already
+class_labels <- factor(RNAseq_data_subtype$subtype)
+
+pca_data_2rna <- pca$x[,1:100] # Select first 10 PCs
+data <- data.frame(response = class_labels, pca_data)
+
+set.seed(123)  # For reproducibility
+train_indices <- sample(1:nrow(pca_data_2rna), nrow(pca_data_2rna) * 0.7)  # 70% for training
+train_data <- pca_data_2rna[train_indices, ]
+train_labels <- class_labels[train_indices]
+test_data <- pca_data_2rna[-train_indices, ]
+test_labels <- class_labels[-train_indices]
+
+rf_model <- randomForest(train_data, train_labels, ntree = 500)
+
+# Make predictions on the test data
+rf_predictions <- predict(rf_model, test_data)
+
+# Calculate the accuracy of the model
+accuracy <- sum(rf_predictions == test_labels) / length(test_labels)
+print(paste("Accuracy:", accuracy))
+
+# Plot the confusion matrix
+table(test_labels, rf_predictions)
+
+end_time <- Sys.time()
+time_taken <- end_time - start_time
+print(time_taken)
+```
+```{r}
+start_time <- Sys.time()
+
+# Convert class labels to factor if they are not already
+class_labels <- factor(RNAseq_data_subtype$subtype)
+
+
+pca_data_2rna <- pca$x # Select first 10 PCs
+data <- data.frame(response = class_labels, pca_data_2rna)
+
+set.seed(123)  # For reproducibility
+train_indices <- sample(1:nrow(data), nrow(data) * 0.7)  # 70% for training
+train_data <- pca_data_2rna[train_indices, ]
+train_labels <- class_labels[train_indices]
+test_data <- pca_data_2rna[-train_indices, ]
+test_labels <- class_labels[-train_indices]
+
+rf_model <- randomForest(train_data, train_labels, ntree = 300)
+
+# Make predictions on the test data
+rf_predictions <- predict(rf_model, test_data)
+
+# Calculate the accuracy of the model
+accuracy <- sum(rf_predictions == test_labels) / length(test_labels)
+print(paste("Accuracy:", accuracy))
+
+# Plot the confusion matrix
+table(test_labels, rf_predictions)
+
+end_time <- Sys.time()
+time_taken <- end_time - start_time
+print(time_taken)
+```
+```{r}
+start_time <- Sys.time()
+
+# Convert class labels to factor if they are not already
+class_labels <- factor(RNAseq_data_subtype$subtype)
+
+dim (rna_matrix)
+#לעשות אלגוריתם שבודק מי הכי משפיע ולקחת את ה1000 נגיד גנים הכי משפיעים- אולי
+r_m= rna_matrix[,]
+# Split the data into training and testing sets
+set.seed(123)  # For reproducibility
+train_indices <- sample(1:nrow(rna_matrix), nrow(rna_matrix) * 0.7)  # 70% for training
+train_data <- rna_matrix[train_indices, ]
+train_labels <- class_labels[train_indices]
+test_data <- rna_matrix[-train_indices, ]
+test_labels <- class_labels[-train_indices]
+
+# Train the Random Forest model
+rf_model <- randomForest(train_data, train_labels, ntree = 10)
+
+# Make predictions on the test data
+rf_predictions <- predict(rf_model, test_data)
+
+# Calculate the accuracy of the model
+accuracy <- sum(rf_predictions == test_labels) / length(test_labels)
+print(paste("Accuracy:", accuracy))
+
+# Plot the confusion matrix
+table(test_labels, rf_predictions)
+
+end_time <- Sys.time()
+time_taken <- end_time - start_time
+print(time_taken)
+```
+
+```{r}
+# Define the array of trees
+ntrees <- c(1, 10, 100, 200, 300, 400, 500)
+
+# Initialize vectors to store accuracy results and computation time
+accuracy_results <- numeric(length(ntrees))
+time_results <- numeric(length(ntrees))
+
+# Loop over ntrees
+for(i in seq_along(ntrees)){
+  start_time <- Sys.time()
+  
+  rf_model <- randomForest(train_data, train_labels, ntree = ntrees[i])
+  
+  # Make predictions on the test data
+  rf_predictions <- predict(rf_model, test_data)
+  
+  # Calculate the accuracy of the model
+  accuracy_results[i] <- sum(rf_predictions == test_labels) / length(test_labels)
+  print(paste("Accuracy for", ntrees[i], "trees:", accuracy_results[i]))
+  
+  # Compute time taken
+  end_time <- Sys.time()
+  time_taken <- end_time - start_time
+  time_results[i] <- time_taken
+  print(paste("Time taken for", ntrees[i], "trees:", time_taken))
+}
+
+# Plotting accuracy and time taken against the number of trees
+par(mfrow = c(2, 1))  # Set up a 2x1 grid of plots
+
+plot(ntrees, accuracy_results, type = "b", main = "Accuracy vs Number of Trees",
+     xlab = "Number of Trees", ylab = "Accuracy", col = "blue")
+
+plot(ntrees, time_results, type = "b", main = "Computation Time vs Number of Trees",
+     xlab = "Number of Trees", ylab = "Time Taken (Seconds)", col = "red")
+
+```
+```{r}
+pri
+```
+
+
 
