@@ -248,4 +248,46 @@ print(confusion_matrix_80)
 
 ```
 
+```{r}
+# Evaluate the model for each classification task (you can use accuracy, confusion matrix, etc.)
+accuracy_subtype_80 <- mean(predictions_subtype_80 == test_labels_subtype_80)
 
+# Print the accuracy
+print(paste("Accuracy for Subtype (80%):", accuracy_subtype_80))
+```
+
+
+```{r}
+precision_80 <- confusion_matrix_80[2, 2] / sum(confusion_matrix_80[, 2])
+recall_80 <- confusion_matrix_80[2, 2] / sum(confusion_matrix_80[2, ])
+print(paste("Precision:", precision_80))
+print(paste("Recall:", recall_80))
+```
+
+```{r}
+f1_score_80 <- 2 * (precision_80 * recall_80) / (precision_80 + recall_80)
+print(paste("F1-Score:", f1_score_80))
+
+```
+
+# Additional metrics
+
+```{r}
+library(e1071)
+
+conf_matrix_80 <- table(Actual = test_labels_subtype_80, Predicted = predictions_subtype_80)
+
+average_precision_80 <- mean(precision_80)
+macro_avg_precision_80 <- mean(precision_80, na.rm = TRUE)
+micro_avg_precision_80 <- sum(diag(conf_matrix_80)) / sum(conf_matrix_80)
+
+predicted_probs_80 <- predict(svm_model_subtype_80, newdata = test_data_80, probability = TRUE)
+binary_predicted_probs_80 <- model.matrix(~ predictions_subtype_80 + 0, data = data.frame(predictions_subtype_80))
+
+
+print(paste("Average Precision:", average_precision_80))
+print(paste("Macro-Averaged Precision:", macro_avg_precision_80))
+print(paste("Micro-Averaged Precision:", micro_avg_precision_80))
+
+
+```
