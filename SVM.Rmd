@@ -120,19 +120,6 @@ head(pca_data)
 
 # Splitting Data into Training and Testing Sets
 
-```{r}
-set.seed(123)  # For reproducibility
-train_indices <- sample(nrow(pca$x), 0.7 * nrow(pca$x))
-
-train_data <- data.frame(pca$x[train_indices, ])
-test_data <- data.frame(pca$x[-train_indices, ])
-
-train_labels_subtype <- as.factor(pca_data$V1[train_indices])
-test_labels_subtype <- pca_data$V1[-train_indices]
-```
-
-
-# Support Vector Machine (SVM)
 
 ```{r}
 set.seed(123)
@@ -152,6 +139,9 @@ train_labels_subtype <- as.factor(data$subtype[train_indices])
 test_labels_subtype <- data$subtype[-train_indices]
 ```
 
+
+# Support Vector Machine (SVM)
+
 ```{r}
 # Install and load the required package
 library(e1071)
@@ -162,14 +152,100 @@ svm_model_subtype <- svm(x = train_data, y = train_labels_subtype, kernel = "rad
 # Make predictions on the testing set
 predictions_subtype <- predict(svm_model_subtype, newdata = test_data)
 
+```
+
+# SVM performance
+
+```{r}
+
+confusion_matrix <- table(predictions_subtype, test_labels_subtype)
+print("Confusion Matrix:")
+print(confusion_matrix)
+
+```
+
+```{r}
 # Evaluate the model for each classification task (you can use accuracy, confusion matrix, etc.)
 accuracy_subtype <- mean(predictions_subtype == test_labels_subtype)
 
 # Print the accuracy
 print(paste("Accuracy for Subtype:", accuracy_subtype))
+```
+
+
+```{r}
+precision <- confusion_matrix[2, 2] / sum(confusion_matrix[, 2])
+recall <- confusion_matrix[2, 2] / sum(confusion_matrix[2, ])
+print(paste("Precision:", precision))
+print(paste("Recall:", recall))
+```
+
+```{r}
+f1_score <- 2 * (precision * recall) / (precision + recall)
+print(paste("F1-Score:", f1_score))
+
+```
+
+# Additional metrics
+
+```{r}
+library(e1071)
+
+conf_matrix <- table(Actual = test_labels_subtype, Predicted = predictions_subtype)
+
+average_precision <- mean(precision)
+macro_avg_precision <- mean(precision, na.rm = TRUE)
+micro_avg_precision <- sum(diag(conf_matrix)) / sum(conf_matrix)
+
+predicted_probs <- predict(svm_model_subtype, newdata = test_data, probability = TRUE)
+binary_predicted_probs <- model.matrix(~ predictions_subtype + 0, data = data.frame(predictions_subtype))
+
+
+print(paste("Average Precision:", average_precision))
+print(paste("Macro-Averaged Precision:", macro_avg_precision))
+print(paste("Micro-Averaged Precision:", micro_avg_precision))
+
+
+```
+
+# SVM improvements 
+
+```{r}
+
+data_indices_80 <- seq_len(nrow(numeric_data))
+
+# Sample 80% of the row indices for the training set
+train_indices_80 <- sample(data_indices_80, size = 0.8 * nrow(numeric_data))
+
+# Create the training set using the sampled row indices
+train_data_80 <- numeric_data[train_indices_80, ]
+
+# Create the testing set by excluding the training set row indices
+test_data_80 <- numeric_data[-train_indices_80, ]
+
+train_labels_subtype_80 <- as.factor(data$subtype[train_indices_80])
+test_labels_subtype_80 <- data$subtype[-train_indices_80]
+```
+
+```{r}
+# Install and load the required package
+library(e1071)
+
+# SVM function with radial basis kernel (you can try other kernels as well)
+svm_model_subtype_80 <- svm(x = train_data_80, y = train_labels_subtype_80, kernel = "radial")
+
+# Make predictions on the testing set
+predictions_subtype_80 <- predict(svm_model_subtype_80, newdata = test_data_80)
 
 ```
 
 
+```{r}
+
+confusion_matrix_80 <- table(predictions_subtype_80, test_labels_subtype_80)
+print("Confusion Matrix:")
+print(confusion_matrix_80)
+
+```
 
 
