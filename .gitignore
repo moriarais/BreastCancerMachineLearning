@@ -1,6 +1,7 @@
 # Ignore csv and other data type files.
 *.csv
 *.tsv
+*.html
 
 *.RData
 *.RDataTmp
