@@ -190,7 +190,6 @@ g <- ggsurvplot(fit, data = data_bc_filtered, risk.table = FALSE, pval = TRUE,
 
 # Display the survival plot
 g
-
 ```
 
 ```{r}

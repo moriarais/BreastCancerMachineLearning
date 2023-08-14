@@ -1,9 +1,10 @@
 ---
-title: "Main data handling"
+title: "MACHINE LEARNING PROJECT - EXPLORING BRCA DATA"
 author: "Shira, Moria, Naama"
 date: "2023-07-24"
-output: 
-  pdf_document:
+output:
+  pdf_document: default
+  html_document: default
     fig_width: 7
     fig_height: 6
     fig_caption: true
@@ -72,6 +73,78 @@ subtype_smaller_df<-subset(subtype_df, subtype_df$her2_receptor != "Equivocal") 
 dim(subtype_smaller_df)
 ```
 
+# Pie charts according to the different types of hormones related to breast cancer.
+
+```{r}
+er <- table(subtype_df$estrogen_receptor)
+myPalette <- brewer.pal(length(er), "Set3") 
+pie(er , labels = names(er), border="white", col=myPalette ,main="ER Status")
+her2 <- table(subtype_df$her2_receptor)
+myPalette <- brewer.pal(length(her2), "Set3") 
+pie(her2 , labels = names(her2), border="white", col=myPalette ,main="HER2 Status")
+pr <- table(subtype_df$progesterone_receptor)
+myPalette <- brewer.pal(length(pr), "Set3") 
+pie(pr , labels = names(pr), border="white", col=myPalette ,main="PR Status")
+types <- table(subtype_df$subtype)
+myPalette <- brewer.pal(length(types), "Set3") 
+pie(types , labels = names(types), border="white", col=myPalette ,main="subtype")
+```
+
+# Analyze the data and investigate main features we would like to research about their relation and affect over the subtype of breast cancer.
+
+```{r, warning=FALSE}
+
+subtype_df <- subset(bc_data, select =
+                       c(bcr_patient_barcode,subtype_BRCA_Subtype_PAM50,breast_carcinoma_estrogen_receptor_status.x,
+                         breast_carcinoma_progesterone_receptor_status.x,lab_proc_her2_neu_immunohistochemistry_receptor_status.x))
+
+colnames(subtype_df) <- c("id", "subtype", "estrogen_receptor","progesterone_receptor","her2_receptor")
+head(subtype_df)
+
+
+race_counts <- table(Breast_cancer$Race.Category)
+myPalette <- brewer.pal(length(race_counts), "Set2") 
+pie(race_counts , labels = c("NATIVE","ASIAN","AFRICAN AMERICAN", "CAUCASIAN"), border="white", col=myPalette )
+
+sex_counts <- table(Breast_cancer$Sex)
+myPalette <- brewer.pal(length(sex_counts), "Set3") 
+pie(sex_counts , labels = names(sex_counts), border="white", col=myPalette )
+
+survival_counts <- table(Breast_cancer$Overall.Survival.Status)
+myPalette <- brewer.pal(length(survival_counts), "Set2") 
+pie(survival_counts , labels = c("ALIVE","DEAD"), border="white", col=myPalette )
+
+Menopause <- table(Breast_cancer$Menopause.Status)
+myPalette <- brewer.pal(length(Menopause), "Set3") 
+pie(Menopause , labels = c("Indeterminate","Peri: 6-12 mos","Post : >12 mos","Pre"), border="white", col=myPalette )
+
+```
+
+# Survival plots
+
+```{r}
+data_bc_filtered <- Breast_cancer
+data_bc_filtered$Vital_status <- ifelse(data_bc_filtered$Overall.Survival.Status == "0:LIVING", 0, 1)
+
+# Specify the correct column names for time and status in the Surv() function
+fit <- survfit(Surv(Overall.Survival..Months., Vital_status) ~ Sex, data = data_bc_filtered)
+
+# Create a new plot with survival curves for high and low expression
+g <- ggsurvplot(fit, data = data_bc_filtered, risk.table = FALSE, pval = TRUE,
+                risk.table.y.text = FALSE, risk.table.height = 0.3,
+                palette = c("#2E9FDF", "purple"), conf.int = TRUE,
+                xlab = "Time from Diagnosis (months)",
+                ylab = "Proportion Survival",
+                font.x = c(17, "bold", "black"),
+                font.y = c(17, "bold", "black"),
+                font.tickslab = c(17, "bold", "black"),
+                legend = c(0.89, 0.89),
+                title = "Survival\n")
+
+# Display the survival plot
+g
+```
+
 # Merge RNA-seq data with receptor subtype data
 
 ```{r}
@@ -96,7 +169,7 @@ filtered_data<-merge(scaled_data,subtype_smaller_df, by.x = "X", by.y = "id")
 
 ## PCA (Principal Component Analysis)
 
-This analysis can be insightful in understanding the variation in the RNA-seq data and how it relates to the different receptor subtypes.
+
 
 ```{r}
 pca <- prcomp(subset(RNAseq_data_estrogen, select = -c(X, estrogen_receptor)))
@@ -145,6 +218,14 @@ test_data <- numeric_data[-train_indices, ]
 
 train_labels_subtype <- as.factor(data$subtype[train_indices])
 test_labels_subtype <- data$subtype[-train_indices]
+```
+
+
+```{r}
+length(train_labels_subtype)
+```
+```{r}
+length(test_labels_subtype)
 ```
 
 
