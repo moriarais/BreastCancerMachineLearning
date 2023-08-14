@@ -5,6 +5,10 @@ date: "2023-07-24"
 output: html_document
 ---
 
+## MACHINE LEARNING PROJECT - EXPLORING BRCA DATA
+
+# Introduction
+
 ```{r setup, include=FALSE}
 library(googledrive)
 library(glmnetUtils)
@@ -29,29 +33,22 @@ library(dplyr)
 library(httr)
 ```
 
-## Read data
-
-# Clinical data
+# Load data
 
 ```{r}
+# Clinical data
 Breast_cancer <- read.delim("brca_tcga_clinical_data.tsv")
 head(Breast_cancer)
-```
 # Breast cancer staging data
-
-```{r}
 bc_data<- read.csv("Breast_cancer_staging_V2.csv")
 head(bc_data)
-```
-
 # Scaled RNA-seq data
-
-```{r}
 scaled_data <- read.csv("scaled_x_rna_seq2.csv")
 dim(scaled_data)
 head(scaled_data)
 ```
 
+# Organize data and clean data
 
 ```{r}
 head(bc_data$breast_carcinoma_progesterone_receptor_status.x)
@@ -124,6 +121,8 @@ pca_data <- data.frame(pca$x, RNAseq_data_subtype$subtype)
 
 head(pca_data)
 ```
+## Findings
+
 # Splitting Data into Training and Testing Sets
 
 ```{r}
@@ -144,13 +143,18 @@ train_labels_subtype <- as.factor(data$subtype[train_indices])
 test_labels_subtype <- data$subtype[-train_indices]
 ```
 
-# Run what ever algo you need to :)
+
+## Machine learning process
+
+# Support Vector Machine (SVM)
 
 
 ```{r}
 
 ```
 
+
+## Conclusions
 
 
 
