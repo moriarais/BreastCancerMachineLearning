@@ -2,7 +2,9 @@
 title: "project ml in r Breast cancer"
 author: "Shira, Moria, Naama"
 date: "2023-08-13"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -388,7 +390,7 @@ print(paste("Accuracy for Subtype:", accuracy_subtype))
 
 
 #randomForest
-```{r}
+
 num_trees <- 1500
 
 # Random Forest for Estrogen Receptor
@@ -421,8 +423,40 @@ print(paste("Accuracy for Progesterone Receptor:", accuracy_pr))
 print(paste("Accuracy for HER2 Receptor:", accuracy_her2))
 print(paste("Accuracy for Subtype:", accuracy_subtype))
 
-```
 
+
+
+# Load required library
+library(ranger)
+
+# Fit a random forest model using the ranger package
+rf_fit <- ranger(train_labels_her2 ~ ., 
+                 data = train_data, 
+                 num.trees = 2000,
+                 max.depth = 20,
+                 probability = TRUE)
+
+# Print the fitted model
+rf_fit
+
+
+# Load required library
+library(ranger)
+
+# Fit a random forest model using the ranger package
+rf_fit <- ranger(train_labels_her2 ~ ., 
+                 data = train_data, 
+                 num.trees = 6000,
+                 mtry = 0.2,       # Specify a fraction of predictors to consider at each split
+                 min.node.size = 30, # Increase this for larger data
+                 sample.fraction = 0.5,  # Use a fraction of your data for each tree
+                 max.depth = 100,
+                 probability = TRUE)
+
+# Print the fitted model
+rf_fit
+
+```
 
 
 ## decision tree
@@ -447,8 +481,8 @@ CrossTable(test_labels_er, pred, prop.chisq = FALSE, prop.c = FALSE, prop.r = FA
 ```
 
 ```{r}
-
-model_dt_her2 <- C5.0(train_data, train_labels_her2,trials = 10)
+model_dt_her2 <- C5.0(train_data, train_labels_her2, trials = 10, model = "C5.0Rules")
+#model_dt_her2 <- C5.0(train_data, train_labels_her2,trials = 10)
 pred_her2 <- predict(model_dt_her2, test_data)
 
 acc <- sum(pred_her2 == test_labels_her2) / length(test_labels_her2)
@@ -482,7 +516,7 @@ CrossTable(test_labels_subtype, pred_subtype, prop.chisq = FALSE, prop.c = FALSE
 
 #randomForest
 still not working
-```{r}
+
 num_trees <- 100
 
 # Random Forest for Estrogen Receptor
@@ -515,7 +549,7 @@ print(paste("Accuracy for Progesterone Receptor:", accuracy_pr))
 print(paste("Accuracy for HER2 Receptor:", accuracy_her2))
 print(paste("Accuracy for Subtype:", accuracy_subtype))
 
-```
+
 
 
 
