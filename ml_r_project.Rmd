@@ -1,5 +1,5 @@
 ---
-title: "project ml in r Breast cancer"
+title: "MACHINE LEARNING PROJECT - EXPLORING BRCA DATA"
 author: "Shira, Moria, Naama"
 date: "2023-08-13"
 output:
@@ -32,23 +32,25 @@ library(dplyr)
 library(httr)
 ```
 
-the mutations data is a binary data with the columns as the gene names
+
+## MACHINE LEARNING PROJECT - EXPLORING BRCA DATA
+
+# Introduction
+
+# Load data
 ```{r}
 y_mutations <- read.csv("y_mutations2.csv")
 head(y_mutations)
-```
-clinical data
-```{r}
+ 
 Breast_cancer <- read.delim("brca_tcga_clinical_data.tsv")
 head(Breast_cancer)
-```
 
-brca_tcga_clinical_data.tsv
-```{r}
 bc_data<- read.csv("Breast_cancer_staging_V2.csv")
 head(bc_data)
 ```
-cbioportall of invasive breast cancer to compare the her2 results
+
+1. The mutations data is a binary data with the columns as the gene names
+2. cbioportall of invasive breast cancer to compare the her2 results
 ```{r}
 df = read.table("data_mrna_illumina_microarray_zscores_ref_diploid_samples.txt",header=TRUE)
 df <- df %>%   select(-Entrez_Gene_Id)
@@ -73,7 +75,7 @@ clinical_df$PATIENT_ID <- gsub("-", ".", clinical_df$PATIENT_ID)
 head(clinical_df)
 dim(clinical_df)
 ```
-the clinical data for the additional cbioportal data
+We analyze the clinical data for the additional cbioportal data
 ```{r}
 clinical_df_subset <- subset(clinical_df, select =
                        c(PATIENT_ID,HER2_SNP6,CLAUDIN_SUBTYPE,ER_IHC,INFERRED_MENOPAUSAL_STATE))
@@ -106,13 +108,16 @@ numeric_data_df <-as.data.frame(lapply(subset(merged_df, select = -c(CLAUDIN_SUB
 
 ```
 
-scaled rna seq data, already normalized and ready to use
-scaled_x_rna_seq2.csv
+The file for scaled rna seq data, Already normalized and ready to use.
+Load scaled_x_rna_seq2.csv
 ```{r}
 scaled_data <- read.csv("scaled_x_rna_seq2.csv")
 dim(scaled_data)
 head(scaled_data)
 ```
+
+# Organize data and clean data
+# Analyze the data and investigate main features we would like to research about their relation and affect over the subtype of breast cancer.
 
 ```{r}
 subtype_df <- subset(bc_data, select =
@@ -160,7 +165,7 @@ numeric_data<-(subset(data, select = -c(X, subtype,estrogen_receptor,progesteron
 head(numeric_data)
 ```
 
-##pca 
+## PCA (Principal Component Analysis)
 This analysis can be insightful in understanding the variation in the RNA-seq data and how it relates to the different receptor subtypes.
 
 1) pca on the second data set
@@ -198,9 +203,8 @@ p <- fviz_pca_ind(pca, label="none", habillage=menapausal_data_df$INFERRED_MENOP
 print(p)
 ```
 
-##pca 
-This analysis can be insightful in understanding the variation in the RNA-seq data and how it relates to the different receptor subtypes.
 2) on the first data set
+
 ```{r}
 pca <- prcomp(numeric_data)
 ```
@@ -288,7 +292,7 @@ numeric_data<-(subset(data, select = -c(X, subtype,estrogen_receptor,progesteron
 head(numeric_data)
 ```
 
-data without undefined her2 status
+3) Data without undefined her2 status
 ```{r}
 filtered_rna_data <- data %>%
   filter(her2_receptor %in% c("Positive", "Negative"))
@@ -326,8 +330,8 @@ accuracy_her2 <- mean(predictions_her2 == test_labels_her2)
 print(paste("Accuracy for HER2 Receptor:", accuracy_her2))
 ```
 
-# ml models
-first we prepare the train and test
+# Machine Learning Models
+# Splitting Data into Training and Testing Sets
 ```{r}
 set.seed(123)
 
@@ -357,36 +361,190 @@ train_labels_subtype <- as.factor(data$subtype[train_indices])
 test_labels_subtype <- data$subtype[-train_indices]
 ```
 
-##svm
+# Support Vector Machine (SVM)
+The reasons for using  SVM for the training our data:
+* Our dataset is complex and the SVM has the ability to regulate and help control overfitting. 
+* SVM can handle multiclass classification by using various technique.
+* SVM can capture interactions between genes that contribute to specific subtypes.
+* SVM are well-studied and understood, and there are established techniques for hyperparameter tuning and model evaluation.
+
 ```{r}
 # Install and load the required package
 library(e1071)
 
 # SVM function with radial basis kernel (you can try other kernels as well)
-svm_model_er <- svm(x = train_data, y = train_labels_er, kernel = "radial")
-svm_model_pr <- svm(x = train_data, y = train_labels_pr, kernel = "radial")
-svm_model_her2 <- svm(x = train_data, y = train_labels_her2, kernel = "radial")
 svm_model_subtype <- svm(x = train_data, y = train_labels_subtype, kernel = "radial")
 
 # Make predictions on the testing set
-predictions_er <- predict(svm_model_er, newdata = test_data)
-predictions_pr <- predict(svm_model_pr, newdata = test_data)
-predictions_her2 <- predict(svm_model_her2, newdata = test_data)
 predictions_subtype <- predict(svm_model_subtype, newdata = test_data)
 
-# Evaluate the model for each classification task (you can use accuracy, confusion matrix, etc.)
-accuracy_er <- mean(predictions_er == test_labels_er)
-accuracy_pr <- mean(predictions_pr == test_labels_pr)
-accuracy_her2 <- mean(predictions_her2 == test_labels_her2)
-accuracy_subtype <- mean(predictions_subtype == test_labels_subtype)
+```
 
-# Print the accuracies
-print(paste("Accuracy for Estrogen Receptor:", accuracy_er))
-print(paste("Accuracy for Progesterone Receptor:", accuracy_pr))
-print(paste("Accuracy for HER2 Receptor:", accuracy_her2)) #"Accuracy for HER2 Receptor: 0.798305084745763"
-print(paste("Accuracy for Subtype:", accuracy_subtype))
+# SVM performance
+
+```{r}
+
+confusion_matrix <- table(predictions_subtype, test_labels_subtype)
+print(confusion_matrix)
 
 ```
+
+```{r}
+accuracy_subtype <- mean(predictions_subtype == test_labels_subtype)
+precision <- confusion_matrix[2, 2] / sum(confusion_matrix[, 2])
+recall <- confusion_matrix[2, 2] / sum(confusion_matrix[2, ])
+f1_score <- 2 * (precision * recall) / (precision + recall)
+
+print(paste("Accuracy for Subtype:", accuracy_subtype))
+print(paste("Precision:", precision))
+print(paste("Recall:", recall))
+print(paste("F1-Score:", f1_score))
+```
+
+# Additional metrics
+
+```{r}
+library(e1071)
+
+conf_matrix <- table(Actual = test_labels_subtype, Predicted = predictions_subtype)
+
+average_precision <- mean(precision)
+macro_avg_precision <- mean(precision, na.rm = TRUE)
+micro_avg_precision <- sum(diag(conf_matrix)) / sum(conf_matrix)
+
+
+print(paste("Average Precision:", average_precision))
+print(paste("Macro-Averaged Precision:", macro_avg_precision))
+print(paste("Micro-Averaged Precision:", micro_avg_precision))
+
+```
+
+# Analyze SVM results
+
+```{r}
+# Compute the confusion matrix
+conf_matrix <- table(predictions_subtype, test_labels_subtype)
+
+# Create a confusion matrix heatmap
+heatmap(conf_matrix, 
+        Rowv = NA, Colv = NA, 
+        col = colorRampPalette(c("white", "blue"))(100),
+        main = "Confusion Matrix Heatmap",
+        xlab = "Predicted Labels",
+        ylab = "Actual Labels",
+        cexRow = 1.2, cexCol = 1.2,
+        margins = c(5, 5))
+
+# Add color legend
+legend("bottomleft", legend = c("Basal", "Her2", "LumA", "LumB", "Normal"),
+       fill = colorRampPalette(c("white", "blue"))(5),
+       title = "Subtypes")
+```
+
+# SVM improvements 
+Previously, we divided the training-test data into 70/30. The following new division (80/20) is in order to improve the SVM results.
+
+```{r}
+
+data_indices_80 <- seq_len(nrow(numeric_data))
+
+# Sample 80% of the row indices for the training set
+train_indices_80 <- sample(data_indices_80, size = 0.8 * nrow(numeric_data))
+
+# Create the training set using the sampled row indices
+train_data_80 <- numeric_data[train_indices_80, ]
+
+# Create the testing set by excluding the training set row indices
+test_data_80 <- numeric_data[-train_indices_80, ]
+
+train_labels_subtype_80 <- as.factor(data$subtype[train_indices_80])
+test_labels_subtype_80 <- data$subtype[-train_indices_80]
+```
+
+```{r}
+# Install and load the required package
+library(e1071)
+
+# SVM function with radial basis kernel (you can try other kernels as well)
+svm_model_subtype_80 <- svm(x = train_data_80, y = train_labels_subtype_80, kernel = "radial")
+
+# Make predictions on the testing set
+predictions_subtype_80 <- predict(svm_model_subtype_80, newdata = test_data_80)
+
+```
+
+
+```{r}
+
+confusion_matrix_80 <- table(predictions_subtype_80, test_labels_subtype_80)
+print("Confusion Matrix:")
+print(confusion_matrix_80)
+
+```
+
+```{r}
+# Evaluate the model for each classification task
+accuracy_subtype_80 <- mean(predictions_subtype_80 == test_labels_subtype_80)
+precision_80 <- confusion_matrix_80[2, 2] / sum(confusion_matrix_80[, 2])
+recall_80 <- confusion_matrix_80[2, 2] / sum(confusion_matrix_80[2, ])
+f1_score_80 <- 2 * (precision_80 * recall_80) / (precision_80 + recall_80)
+
+print(paste("Accuracy for Subtype (80%):", accuracy_subtype_80))
+print(paste("Precision:", precision_80))
+print(paste("Recall:", recall_80))
+print(paste("F1-Score:", f1_score_80))
+```
+
+
+# Additional metrics
+
+```{r}
+library(e1071)
+
+conf_matrix_80 <- table(Actual = test_labels_subtype_80, Predicted = predictions_subtype_80)
+
+average_precision_80 <- mean(precision_80)
+macro_avg_precision_80 <- mean(precision_80, na.rm = TRUE)
+micro_avg_precision_80 <- sum(diag(conf_matrix_80)) / sum(conf_matrix_80)
+
+print(paste("Average Precision:", average_precision_80))
+print(paste("Macro-Averaged Precision:", macro_avg_precision_80))
+print(paste("Micro-Averaged Precision:", micro_avg_precision_80))
+```
+
+# Analyze SVM results
+
+```{r}
+# Compute the confusion matrix
+conf_matrix_80 <- table(predictions_subtype_80, test_labels_subtype_80)
+
+# Create a confusion matrix heatmap
+heatmap(conf_matrix_80, 
+        Rowv = NA, Colv = NA, 
+        col = colorRampPalette(c("white", "blue"))(100),
+        main = "Confusion Matrix Heatmap",
+        xlab = "Predicted Labels",
+        ylab = "Actual Labels",
+        cexRow = 1.2, cexCol = 1.2,
+        margins = c(5, 5))
+
+# Add color legend
+legend("bottomleft", legend = c("Basal", "Her2", "LumA", "LumB", "Normal"),
+       fill = colorRampPalette(c("white", "blue"))(5),
+       title = "Subtypes")
+```
+
+# Compare between the 2 SVM results
+
+Metrics        |  70/30         | 80/20
+-------------  |  ------------- | -------------
+Accuracy       |  0.808         | 0.839    
+Precision      |  0.7           | 0.6 
+Recall         |  0.875         | 0.857
+F1 score       |  0.777         | 0.705
+
+Conclusion: Increasing the training set size to 80% led to improved accuracy, but with a decrease in precision and F1 score. The recall remained relatively consistent between the two configurations. These results suggest that the model's performance can be influenced by the proportion of training and testing data, and there's a trade-off between correctly predicting positive cases and minimizing false positives.
+
 
 
 #randomForest

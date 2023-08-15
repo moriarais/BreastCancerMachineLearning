@@ -3,11 +3,8 @@ title: "MACHINE LEARNING PROJECT - EXPLORING BRCA DATA"
 author: "Shira, Moria, Naama"
 date: "2023-07-24"
 output:
-  pdf_document: default
   html_document: default
-    fig_width: 7
-    fig_height: 6
-    fig_caption: true
+  pdf_document: default
 ---
 
 ## MACHINE LEARNING PROJECT - EXPLORING BRCA DATA
@@ -52,6 +49,8 @@ scaled_data <- read.csv("scaled_x_rna_seq2.csv")
 dim(scaled_data)
 head(scaled_data)
 ```
+1. The mutations data is a binary data with the columns as the gene names
+2. cbioportall of invasive breast cancer to compare the her2 results
 
 # Organize data and clean data
 
@@ -170,20 +169,6 @@ filtered_data<-merge(scaled_data,subtype_smaller_df, by.x = "X", by.y = "id")
 ## PCA (Principal Component Analysis)
 
 
-
-```{r}
-pca <- prcomp(subset(RNAseq_data_estrogen, select = -c(X, estrogen_receptor)))
-```
-
-
-```{r,warning=FALSE}
-p <- fviz_pca_ind(pca, label="none", habillage=RNAseq_data_subtype$subtype,
-             addEllipses=TRUE, ellipse.level=0.95)
-print(p)
-```
-
-
-
 ```{r}
 data<-merge(scaled_data, subtype_df, by.x = "X", by.y = "id")
 numeric_data<-(subset(data, select = -c(X, subtype,estrogen_receptor,progesterone_receptor,her2_receptor)))
@@ -191,13 +176,6 @@ head(numeric_data)
 ```
 
 
-```{r}
-dim(pca$x)
-
-pca_data <- data.frame(pca$x, RNAseq_data_subtype$subtype)
-
-head(pca_data)
-```
 ## Findings
 
 # Splitting Data into Training and Testing Sets
@@ -221,13 +199,6 @@ test_labels_subtype <- data$subtype[-train_indices]
 ```
 
 
-```{r}
-length(train_labels_subtype)
-```
-```{r}
-length(test_labels_subtype)
-```
-
 
 ## Machine learning process
 
@@ -235,9 +206,8 @@ length(test_labels_subtype)
 The reasons for using  SVM for the training our data:
 * Our dataset is complex and the SVM has the ability to regulate and help control overfitting. 
 * SVM can handle multiclass classification by using various technique.
-* SVMs can capture interactions between genes that contribute to specific subtypes.
-* SVMs are well-studied and understood, and there are established techniques for hyperparameter tuning and model evaluation.
-
+* SVM can capture interactions between genes that contribute to specific subtypes.
+* SVM are well-studied and understood, and there are established techniques for hyperparameter tuning and model evaluation.
 
 
 ```{r}
