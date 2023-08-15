@@ -1,6 +1,6 @@
 ---
 title: "MACHINE LEARNING PROJECT - EXPLORING BRCA DATA"
-author: "Shira, Moria, Naama"
+author: "Shira 323028845, Moria 300977782, Naama 324117654"
 date: "`r Sys.Date()`"
 output: pdf_document
 ---
@@ -46,7 +46,7 @@ Normal-like: Resembles normal tissue but still cancerous.
 # Loading the data
 1. The mutations data is a binary data with the columns as the gene names
 2. we also have a clinical data matching the patients id in the mutations data and rna seq data.
-3. scaled RNAseq data with 56498 columns (genes) and 979 patients. we used the scaled data so its ready to use and already normlized.
+3. scaled RNAseq data with 56498 columns (genes) and 979 patients. we used the scaled data so its ready to use.
 ```{r}
 y_mutations <- read.csv("y_mutations2.csv")
 Breast_cancer <- read.delim("brca_tcga_clinical_data.tsv")
@@ -67,6 +67,7 @@ numeric_data<-(subset(data, select = -c(X, subtype,estrogen_receptor,progesteron
 ```
 
 # Survival plot
+The plot illustrates the survival probabilities across different subtypes of breast cancer. for example, it reveals that the LumB subtype exhibits slightly lower survival rates compared to the LumA subtype, indicating a relatively more aggressive nature in terms of disease progression. 
 ```{r,fig.show='hold',fig.width=5,fig.height=3}
 tmp <- subtype_df[, c("id", "subtype")]
 tmp2<-Breast_cancer[,c("Patient.ID","Overall.Survival.Status","Overall.Survival..Months.")]
@@ -90,17 +91,11 @@ ggsurvplot(survfit(Surv(Survival_Months, Survival_Status) ~ subtype, data = subt
 ```
 
 # PCA (Principal Component Analysis)
-This analysis can help us vizualize the RNA-seq data vs the different subtypes, by reducing the dimetions (remember? we have over 50000 genes).
+This analysis can help us visualize the RNA-seq data vs the different subtypes, by reducing the dimetions (remember? we have over 50000 genes).
 ```{r}
 pca <- prcomp(numeric_data)
 ```
-
-```{r, fig.height=4,fig.width=6}
-fviz_pca_ind(pca, col.ind="cos2", geom = "point") +
-      scale_color_gradient2(low="white", mid="red",high="blue", midpoint=0.2)+ theme_minimal()
-```
-
-```{r,warning=FALSE,fig.show='hold',fig.height=4,fig.width=6, out.width='50%'}
+```{r,warning=FALSE,fig.show='hold',fig.height=4,fig.width=6, out.width='50%',echo=FALSE, message=FALSE}
 p1 <- fviz_pca_ind(pca, label="none", habillage=data$subtype,
              addEllipses=TRUE, ellipse.level=0.95) + ggtitle("Subtype")
 print(p1)
@@ -128,7 +123,7 @@ From our analysis, out of 4 algorithms, we used 2 linear algorithms - Svm and Km
 ## K-Means 
 k-Means is an unsupervised algorithm that partitions a dataset into 'k' clusters based on similarity between data points and cluster, with the goal of minimizing the variance within each cluster. 
 We wanted to explor if editing the data subtype class will male a diffrence. since between LumA and LumB there isn't a significant molecular different, we renamed them to LumA/B. we hope to observe better separation between the clusters. (the kmeans before the edited data can be found in the supplementary)
-```{r}
+```{r,warning=FALSE}
 subtype_data <- data %>%
   mutate(subtype = case_when(
     subtype %in% c("LumA", "LumB") ~ "lumA/B",
@@ -138,7 +133,7 @@ subtype_data <- data %>%
 numeric_subtype_data<-(subset(subtype_data, select = -c(X, subtype,estrogen_receptor,progesterone_receptor,her2_receptor)))
 ```
 
-```{r,fig.height=4,fig.width=6}
+```{r,fig.height=4,fig.width=6,warning=FALSE}
 rna_matrix <- as.matrix(numeric_subtype_data)
 #pca <- prcomp(rna_matrix) # we already did
 set.seed(123)  # For reproducibility
@@ -188,7 +183,7 @@ test_labels_subtype <- data$subtype[-train_indices]
 ## Support Vector Machine (SVM)
 Since our data is complex, SVM model likely has the ability to regulate and help control overfitting, handling multiclass classification by using various technique, and it can also  capture interactions between genes that contribute to specific subtypes.
 
-```{r}
+```{r,warning=FALSE,message=FALSE}
 # SVM function with radial basis kernel (you can try other kernels as well)
 svm_model_er <- svm(x = train_data, y = train_labels_er, kernel = "radial")
 svm_model_pr <- svm(x = train_data, y = train_labels_pr, kernel = "radial")
@@ -214,8 +209,9 @@ print(paste("Accuracy for HER2 Receptor:", accuracy_her2))
 print(paste("Accuracy for Subtype:", accuracy_subtype))
 ```
 We recieved an accuracy of "Accuracy for Subtype: 0.797520661157025". Next, we are trying to find the best parameters for subtype classification, to create the best model. The accuracy got up to 0.8316832.
-```{r}
-C_values <- c(0.01, 0.1, 1, 10, 100)
+we will check those values: (0.1, 1, 10, 100)
+```{r,warning=FALSE,message=FALSE}
+C_values <- c(0.1, 1, 10, 100)
 
 best_accuracy <- 0
 best_svm_model <- NULL
@@ -239,8 +235,8 @@ print(conf_matrix)
 ```
 ## decision tree
 The C5.0() function helps us use boosting with our C5.0 decision tree. We add a trials parameter to show how many trees to use in the boosting team. we choose 10 trials. The parameter sets a limit, stopping if more trees won't improve the accuracy.
-###Estrogen 
-```{r}
+Estrogen:
+```{r,warning=FALSE,message=FALSE}
 model <- C5.0(train_data, train_labels_er,trials = 10)# applying the model on the training data
 pred <- predict(model, test_data)#predict the estrogen receptor stat based ont he test
 acc <- sum(pred == test_labels_er) / length(test_labels_er)
@@ -260,34 +256,33 @@ actual value   |  Negative |  Positive | Row Total |
 ---------------|-----------|-----------|-----------|
 "Accuracy: 93.39 %"
 
-### Her2
-```{r}
+Her2:
+```{r,warning=FALSE,message=FALSE}
 model_dt_her2 <- C5.0(train_data, train_labels_her2, model = "C5.0Rules")
 pred_her2 <- predict(model_dt_her2, test_data)
 acc <- sum(pred_her2 == test_labels_her2) / length(test_labels_her2)
 print(paste("Accuracy:", round(acc * 100, 2), "%"))
-#print(CrossTable(test_labels_her2, pred_her2, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE))
 ```
 "Accuracy: 65.7 %". this accuracy is after a significante improvement: from accuracy of 53.31 %, after changing the model to "C5.0Rules" (the original model can be found in extras). as we can see, the accuracy still isn't high but again, the data itself is lacking, which make it harder for the algorithm to preform better.
 
-### Progesteron
-```{r}
+Progesteron:
+```{r,warning=FALSE,message=FALSE}
 model_dt_pr <- C5.0(train_data, train_labels_pr,trials = 10)
 pred_pr <- predict(model_dt_pr, test_data)
 acc <- sum(pred_pr == test_labels_pr) / length(test_labels_pr)
 print(paste("Accuracy:", round(acc * 100, 2), "%"))
-#print(CrossTable(test_labels_pr, pred_pr, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE))
 ```
 
-### Subtype
-The accuracy value we recieved is very low. no metter the trial number or the model it didnt improve. we will count on the other algorithms
-```{r}
+Subtype:
+```{r,warning=FALSE,message=FALSE}
 model_dt_subtype<- C5.0(train_data, train_labels_subtype,tirals=15)
 pred_subtype <- predict(model_dt_subtype, test_data)
-acc <- sum(pred_subtype == train_labels_subtype) / length(train_labels_subtype)
+acc <- sum(pred_subtype == test_labels_subtype) / length(test_labels_subtype)
 print(paste("Accuracy:", round(acc * 100, 2), "%"))
 ```
-As seen, the estrogen and progesteron receptors have the best accuracy so far. her2, with a small data, dosn't show the best results. and subtype- our main goul in this project show accuracy over 80%. we will go through a few more ml algorithms to try and perfect as we can the accuracy, with foucos on subtype.
+
+As seen, the estrogen and progesterone receptors have the best accuracy so far. her2, with a small data, dosn't show the best results. 
+subtype classification, our main goul in this project show accuracy over 80%. we will go through a few more ml algorithms to try and perfect it as we can the accuracy, with focos on subtype.
 
 ## Random Forest
 Random Forest is a machine learning method that builds multiple decision trees and combines their predictions for improved accuracy and robustness in handling diverse data patterns. It reduces overfitting and captures complex relationships by using random subsets of data and features. 
@@ -304,11 +299,11 @@ for (nt in ntree_values) {
 }
 
 
-```{r,include=FALSE}
+```{r,warning=FALSE,message=FALSE}
 results<- read.csv("results_randomForest_8.2.csv")
 ```
 
-```{r,fig.width=6,fig.height=3}
+```{r,fig.width=6,fig.height=3,warning=FALSE,message=FALSE}
 ggplot(data = results, aes(x = N.trees, y = Accuracy)) +
   geom_line(color = "blue", size = 0.7) +
   geom_point(color = "blue", size = 2, shape = 16) +
@@ -319,41 +314,20 @@ As it seems, the ntree that gives as the best accuracy is 1000 treen. given our 
 
 # Conclusion
 Our clinical data, as mentioned before is significantly lacking, instead of nulls we have a lot of  "Indeterminate" or "Equivocal". when we tried to clean the data from rows containing those terms instead of positive/negative, we were left with a significantly low amount of samples. in addition, a lot of algorithms didn't work on our RNA seq data, which course us to be very limited to a few versions of libraries in r strong enough to build models and analyze large data (over 50000 genes).
- back to our results:
-Random Forest and SVM showed similar results, with subtype.
-Decision tree performed well with ER and PR.
+
+back to our results:
+Random Forest and SVM showed similar results (~83), Decision tree only a little less (80~).
+Decision tree also performed well with ER and PR.
 
 For future analysis, we would reanalyze everything with different data, more conclusive data without a lot of question make as we have here in the clinical data... and maybe will test with the improved algorithm the  "Indeterminate" and "Equivocal" in this data:-)
 
 \newpage
-#extra
-###svm
 
-Previously, we divided the training-test data into 70/30. here we tried (80/20) 
-```{r}
-data_indices_80 <- seq_len(nrow(numeric_data))
+#supplementary data
 
-# Sample 80% of the row indices for the training set
-train_indices_80 <- sample(data_indices_80, size = 0.8 * nrow(numeric_data))
+svm:
+Previously, we divided the training-test data into 80/20. we also tried 70/30 
 
-# Create the training set using the sampled row indices
-train_data_80 <- numeric_data[train_indices_80, ]
-
-# Create the testing set by excluding the training set row indices
-test_data_80 <- numeric_data[-train_indices_80, ]
-
-train_labels_subtype_80 <- as.factor(data$subtype[train_indices_80])
-test_labels_subtype_80 <- data$subtype[-train_indices_80]
-```
-
-```{r,echo=TRUE}
-svm_model_subtype_80 <- svm(x = train_data_80, y = train_labels_subtype_80, kernel = "radial")
-predictions_subtype_80 <- predict(svm_model_subtype_80, newdata = test_data_80)
-confusion_matrix_80 <- table(predictions_subtype_80, test_labels_subtype_80)
-print(confusion_matrix_80)
-accuracy_subtype_80 <- mean(predictions_subtype_80 == test_labels_subtype_80)
-print(paste("Accuracy for Subtype (80%):", accuracy_subtype_80))
-```
 Metrics        |  70/30         | 80/20
 -------------  |  ------------- | -------------
 Accuracy       |  0.808         | 0.839    
@@ -365,15 +339,7 @@ Increasing the training set size to 80% led to improved accuracy, but with a dec
 
 The model's performance can be influenced by the proportion of training and testing data, we might have a lot of columns but if we are talking about her2/basal for example, not a lot of patients are classified positive and each random train test split will change the results. the her2 patients can not be in the train at all ect.
 
-### dt
-Her2
-```{r}
-model_dt_her2 <- C5.0(train_data, train_labels_her2)
-pred_her2 <- predict(model_dt_her2, test_data)
-acc <- sum(pred_her2 == test_labels_her2) / length(test_labels_her2)
-print(paste("Accuracy before change of parameters: ", round(acc * 100, 2), "%"))
-```
-### kmeans
+kmeans:
 ```{r}
 rna_matrix <- as.matrix(numeric_data)
 set.seed(123)  # For reproducibility
@@ -396,7 +362,9 @@ ggplot(pca_data, aes(x = PC1, y = PC2, color = Class, shape = Cluster)) +
   scale_color_manual(values = class_colors) +
   guides(shape = guide_legend(title = "Cluster"), color = guide_legend(title = "Class"))
 ```
-### Random Forest
+
+Random Forest
+
 we also tried to slpit the data 70:30:
 
 ntree_values <- c(50, 100,150, 200, 500, 800, 1000, 1200, 1500, 2000)
@@ -422,17 +390,8 @@ ggplot(data = results, aes(x = N.trees, y = Accuracy)) +
   theme_minimal()
 ```
 
-The data we used is quite heavy, therefore, we are trying to create a smaller version for faster analysis. 
-```{r}
-variance_threshold <- 0.15
-gene_variances <- apply(numeric_data, 2, var)
-selected_genes <- names(gene_variances)[gene_variances >= variance_threshold]
-rna_data <- numeric_data %>%   select(all_of(selected_genes))
-dim(rna_data)
-```
-
 ### Pie charts
-```{r,warning=FALSE}
+```{r,warning=FALSE,echo=FALSE}
 sex_counts <- table(Breast_cancer$Sex)
 myPalette <- brewer.pal(length(sex_counts), "Set3") 
 pie(sex_counts , labels = names(sex_counts), border="white", col=myPalette )
