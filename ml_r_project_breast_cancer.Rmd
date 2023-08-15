@@ -1,0 +1,801 @@
+---
+title: "ml_in_r_final_project"
+author: "Shira, Moria, Naama"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(googledrive)
+library(glmnetUtils)
+library(corrplot)
+library(randomForest)
+library("devtools")
+library("factoextra")
+library(ggplot2)
+library(rpart)
+library(e1071)
+library(randomForest)
+library(caret)
+library(readr)
+library(class)
+library(RColorBrewer)
+library(FNN)
+library(cluster)
+library(ggplot2)
+library(survival)
+library(survminer)
+library(ggpubr)
+library(dplyr)
+library(httr)
+```
+
+
+## Machine learning project - breast cancer
+
+# Introduction
+
+# Load data
+```{r}
+y_mutations <- read.csv("y_mutations2.csv")
+head(y_mutations)
+ 
+Breast_cancer <- read.delim("brca_tcga_clinical_data.tsv")
+head(Breast_cancer)
+
+bc_data<- read.csv("Breast_cancer_staging_V2.csv")
+head(bc_data)
+```
+
+1. The mutations data is a binary data with the columns as the gene names
+2. cbioportall of invasive breast cancer to compare the her2 results
+```{r}
+df = read.table("data_mrna_illumina_microarray_zscores_ref_diploid_samples.txt",header=TRUE)
+df <- df %>%   select(-Entrez_Gene_Id)
+
+df <- t(df)
+# Convert the transposed matrix to a data frame
+df <- as.data.frame(df, stringsAsFactors = FALSE)
+
+# Extract header
+header <- df[1, ]
+
+# Assign headers to the data frame
+colnames(df) <- header
+df <- df[-1, ]
+colnames(df)[0] <- "PATIENT_ID"
+
+head(df)
+dim(df)
+
+clinical_df=read.table("data_clinical_patient.txt",sep='\t',header=TRUE)
+clinical_df$PATIENT_ID <- gsub("-", ".", clinical_df$PATIENT_ID)
+head(clinical_df)
+dim(clinical_df)
+```
+We analyze the clinical data for the additional cbioportal data
+```{r}
+clinical_df_subset <- subset(clinical_df, select =
+                       c(PATIENT_ID,HER2_SNP6,CLAUDIN_SUBTYPE,ER_IHC,INFERRED_MENOPAUSAL_STATE))
+
+clinical_df_subset <- na.omit(clinical_df_subset)
+row.names(clinical_df_subset) <- clinical_df_subset$PATIENT_ID
+clinical_df_subset <- clinical_df_subset[, -1]
+
+head(clinical_df_subset)
+```
+
+```{r}
+merged_df <- merge(clinical_df_subset, df, by = 0, all = TRUE)
+rownames(merged_df) <- merged_df$Row.names
+merged_df <- merged_df[-1]
+merged_df<-na.omit(merged_df)
+```
+
+```{r}
+head(merged_df)
+dim(merged_df)
+```
+
+```{r}
+subtype_data_df <-subset(merged_df, select = -c(HER2_SNP6,ER_IHC,INFERRED_MENOPAUSAL_STATE))
+her2_data_df <- subset(merged_df, select = -c(CLAUDIN_SUBTYPE,ER_IHC,INFERRED_MENOPAUSAL_STATE))
+estrogen_data_df <- subset(merged_df, select = -c(CLAUDIN_SUBTYPE,INFERRED_MENOPAUSAL_STATE,HER2_SNP6))
+menapausal_data_df <-subset(merged_df, select = -c(CLAUDIN_SUBTYPE,ER_IHC,HER2_SNP6))
+numeric_data_df <-as.data.frame(lapply(subset(merged_df, select = -c(CLAUDIN_SUBTYPE,ER_IHC,HER2_SNP6,INFERRED_MENOPAUSAL_STATE)), as.numeric))
+
+```
+
+The file for scaled rna seq data, Already normalized and ready to use.
+Load scaled_x_rna_seq2.csv
+```{r}
+scaled_data <- read.csv("scaled_x_rna_seq2.csv")
+dim(scaled_data)
+head(scaled_data)
+```
+
+# Organize data and clean data
+# Analyze the data and investigate main features we would like to research about their relation and affect over the subtype of breast cancer.
+
+```{r}
+subtype_df <- subset(bc_data, select =
+                       c(bcr_patient_barcode,subtype_BRCA_Subtype_PAM50,breast_carcinoma_estrogen_receptor_status.x,
+                         breast_carcinoma_progesterone_receptor_status.x,lab_proc_her2_neu_immunohistochemistry_receptor_status.x))
+
+colnames(subtype_df) <- c("id", "subtype", "estrogen_receptor","progesterone_receptor","her2_receptor")
+head(subtype_df)
+
+# Remove rows with NA values from the RNA-seq data
+subtype_df <- na.omit(subtype_df)
+dim(subtype_df)
+```
+
+```{r}
+subtype_data <- subset(subtype_df, select = c(id,subtype))
+head(subtype_data)
+
+her2_data <- subset(subtype_df, select = c(id,her2_receptor))
+head(her2_data)
+
+progesterone_data <- subset(subtype_df, select = c(id,progesterone_receptor))
+head(progesterone_data)
+
+estrogen_data <- subset(subtype_df, select = c(id,estrogen_receptor))
+head(estrogen_data)
+
+
+y_mutations<-na.omit(y_mutations)
+scaled_data<-na.omit(scaled_data)
+     
+y_mutations_data_subtype <- merge(y_mutations, subtype_data, by.x = "X", by.y = "id")
+y_mutations_data_her2 <- merge(y_mutations, her2_data, by.x = "X", by.y = "id")
+y_mutations_data_progesterone <- merge(y_mutations, progesterone_data, by.x = "X", by.y = "id")
+y_mutations_data_estrogen <- merge(y_mutations, estrogen_data, by.x = "X", by.y = "id")
+
+RNAseq_data_subtype <- merge(scaled_data, subtype_data, by.x = "X", by.y = "id")
+RNAseq_data_her2 <- merge(scaled_data, her2_data, by.x = "X", by.y = "id")
+RNAseq_data_progesterone <- merge(scaled_data, progesterone_data, by.x = "X", by.y = "id")
+RNAseq_data_estrogen <- merge(scaled_data, estrogen_data, by.x = "X", by.y = "id")
+```
+```{r}
+data<-merge(scaled_data, subtype_df, by.x = "X", by.y = "id")
+numeric_data<-(subset(data, select = -c(X, subtype,estrogen_receptor,progesterone_receptor,her2_receptor)))
+head(numeric_data)
+```
+
+## PCA (Principal Component Analysis)
+This analysis can be insightful in understanding the variation in the RNA-seq data and how it relates to the different receptor subtypes.
+
+1) pca on the second data set
+```{r}
+head(numeric_data_df)
+pca <- prcomp(numeric_data_df)
+```
+
+```{r}
+fviz_pca_ind(pca, col.ind="cos2", geom = "point") +
+      scale_color_gradient2(low="white", mid="red",high="blue", midpoint=0.4)+ theme_minimal()
+```
+what we see here is that the her2 status in yet another data dont have a clear diffrence when its come to her2 
+```{r,warning=FALSE}
+p <- fviz_pca_ind(pca, label="none", habillage=her2_data_df$HER2_SNP6,
+             addEllipses=TRUE, ellipse.level=0.95)
+print(p)
+```
+
+```{r}
+p <- fviz_pca_ind(pca, label="none", habillage=subtype_data_df$CLAUDIN_SUBTYPE,
+             addEllipses=TRUE, ellipse.level=0.95)
+print(p)
+```
+
+```{r}
+p <- fviz_pca_ind(pca, label="none", habillage=estrogen_data_df$ER_IHC,
+             addEllipses=TRUE, ellipse.level=0.95)
+print(p)
+```
+
+```{r}
+p <- fviz_pca_ind(pca, label="none", habillage=menapausal_data_df$INFERRED_MENOPAUSAL_STATE,
+             addEllipses=TRUE, ellipse.level=0.95)
+print(p)
+```
+
+2) on the first data set
+
+```{r}
+pca <- prcomp(numeric_data)
+```
+
+```{r}
+fviz_pca_ind(pca, col.ind="cos2", geom = "point") +
+      scale_color_gradient2(low="white", mid="red",high="blue", midpoint=0.2)+ theme_minimal()
+```
+
+```{r}
+# Control the transparency of the color by the contributions
+fviz_pca_ind(pca, col.ind="contrib") +
+      scale_color_gradient2(low="lightblue", mid="blue",
+      high="red", midpoint=1)
+```
+
+```{r,warning=FALSE}
+p <- fviz_pca_ind(pca, label="none", habillage=RNAseq_data_subtype$subtype,
+             addEllipses=TRUE, ellipse.level=0.95)
+print(p)
+```
+
+```{r}
+p <- fviz_pca_ind(pca, label="none", habillage=RNAseq_data_her2$her2_receptor,
+             addEllipses=TRUE, ellipse.level=0.95)
+print(p)
+```
+
+```{r,warning=FALSE}
+p <- fviz_pca_ind(pca, label="none", habillage=RNAseq_data_estrogen$estrogen_receptor,
+             addEllipses=TRUE, ellipse.level=0.95)
+print(p)
+```
+
+```{r,warning=FALSE,message=FALSE}
+p <- fviz_pca_ind(pca, label="none", habillage=RNAseq_data_progesterone$progesterone_receptor,
+             addEllipses=TRUE, ellipse.level=0.95)
+print(p)
+```
+
+
+```{r}
+pca_to_show <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  classification = as.factor(RNAseq_data_estrogen$estrogen_receptor)
+)
+
+ggplot(pca_to_show, aes(x = PC1, y = PC2, col = classification)) +
+  geom_point()
+
+pca_to_show <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  classification = as.factor(RNAseq_data_her2$her2_receptor)
+)
+
+ggplot(pca_to_show, aes(x = PC1, y = PC2, col = classification)) +
+  geom_point()
+
+pca_to_show <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  classification = as.factor(RNAseq_data_progesterone$progesterone_receptor)
+)
+
+ggplot(pca_to_show, aes(x = PC1, y = PC2, col = classification)) +
+  geom_point()
+
+
+pca_to_show <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  classification = as.factor(RNAseq_data_subtype$subtype)
+)
+
+ggplot(pca_to_show, aes(x = PC1, y = PC2, col = classification)) +
+  geom_point()
+
+```
+
+```{r}
+data<-merge(scaled_data, subtype_df, by.x = "X", by.y = "id")
+numeric_data<-(subset(data, select = -c(X, subtype,estrogen_receptor,progesterone_receptor,her2_receptor)))
+head(numeric_data)
+```
+
+3) Data without undefined her2 status
+```{r}
+filtered_rna_data <- data %>%
+  filter(her2_receptor %in% c("Positive", "Negative"))
+numeric_data_filter<-(subset(filtered_rna_data, select = -c(X, subtype,estrogen_receptor,progesterone_receptor,her2_receptor)))
+
+variance_threshold <- 0.15# Set the variance threshold
+gene_variances <- apply(numeric_data, 2, var)# Calculate the variance for each gene
+selected_genes <- names(gene_variances)[gene_variances >= variance_threshold]# Filter genes based on the variance threshold
+selected_rna_data <- numeric_data %>% select(all_of(selected_genes))
+dim(numeric_data_filter)
+dim(selected_rna_data)
+variance_threshold <- 0.15
+gene_variances <- apply(numeric_data_filter, 2, var)
+selected_genes <- names(gene_variances)[gene_variances >= variance_threshold]
+selected_rna_data <- numeric_data_filter %>%   select(all_of(selected_genes))
+```
+
+```{r}
+set.seed(123)
+data_indices <- seq_len(nrow(selected_rna_data))
+train_indices <- sample(data_indices, size = 0.7 * nrow(selected_rna_data))
+train_data <- selected_rna_data[train_indices, ]
+test_data <- selected_rna_data[-train_indices, ]
+train_labels_her2 <- as.factor(filtered_rna_data$her2_receptor[train_indices])
+test_labels_her2 <- filtered_rna_data$her2_receptor[-train_indices]
+```
+her 2 svm model (positive or negative)
+```{r}
+svm_model_her2 <- svm(x = train_data, y = train_labels_her2, kernel = "radial")
+
+predictions_her2 <- predict(svm_model_her2, newdata = test_data)
+
+accuracy_her2 <- mean(predictions_her2 == test_labels_her2)
+
+print(paste("Accuracy for HER2 Receptor:", accuracy_her2))
+```
+
+# Machine Learning Models
+# Splitting Data into Training and Testing Sets
+```{r}
+set.seed(123)
+
+dim(numeric_data)
+
+data_indices <- seq_len(nrow(numeric_data))
+
+# Sample 70% of the row indices for the training set
+train_indices <- sample(data_indices, size = 0.7 * nrow(numeric_data))
+
+# Create the training set using the sampled row indices
+train_data <- numeric_data[train_indices, ]
+
+# Create the testing set by excluding the training set row indices
+test_data <- numeric_data[-train_indices, ]
+
+train_labels_er <- as.factor(data$estrogen_receptor[train_indices])
+test_labels_er <- data$estrogen_receptor[-train_indices]
+
+train_labels_pr <- as.factor(data$progesterone_receptor[train_indices])
+test_labels_pr <- data$progesterone_receptor[-train_indices]
+
+train_labels_her2 <- as.factor(data$her2_receptor[train_indices])
+test_labels_her2 <- data$her2_receptor[-train_indices]
+
+train_labels_subtype <- as.factor(data$subtype[train_indices])
+test_labels_subtype <- data$subtype[-train_indices]
+```
+
+# Support Vector Machine (SVM)
+The reasons for using  SVM for the training our data:
+* Our dataset is complex and the SVM has the ability to regulate and help control overfitting. 
+* SVM can handle multiclass classification by using various technique.
+* SVM can capture interactions between genes that contribute to specific subtypes.
+* SVM are well-studied and understood, and there are established techniques for hyperparameter tuning and model evaluation.
+
+```{r}
+# Install and load the required package
+library(e1071)
+
+# SVM function with radial basis kernel (you can try other kernels as well)
+svm_model_subtype <- svm(x = train_data, y = train_labels_subtype, kernel = "radial")
+
+# Make predictions on the testing set
+predictions_subtype <- predict(svm_model_subtype, newdata = test_data)
+
+```
+
+# SVM performance
+
+```{r}
+
+confusion_matrix <- table(predictions_subtype, test_labels_subtype)
+print(confusion_matrix)
+
+```
+
+```{r}
+accuracy_subtype <- mean(predictions_subtype == test_labels_subtype)
+precision <- confusion_matrix[2, 2] / sum(confusion_matrix[, 2])
+recall <- confusion_matrix[2, 2] / sum(confusion_matrix[2, ])
+f1_score <- 2 * (precision * recall) / (precision + recall)
+
+print(paste("Accuracy for Subtype:", accuracy_subtype))
+print(paste("Precision:", precision))
+print(paste("Recall:", recall))
+print(paste("F1-Score:", f1_score))
+```
+
+# Additional metrics
+
+```{r}
+library(e1071)
+
+conf_matrix <- table(Actual = test_labels_subtype, Predicted = predictions_subtype)
+
+average_precision <- mean(precision)
+macro_avg_precision <- mean(precision, na.rm = TRUE)
+micro_avg_precision <- sum(diag(conf_matrix)) / sum(conf_matrix)
+
+
+print(paste("Average Precision:", average_precision))
+print(paste("Macro-Averaged Precision:", macro_avg_precision))
+print(paste("Micro-Averaged Precision:", micro_avg_precision))
+
+```
+
+# Analyze SVM results
+
+```{r}
+# Compute the confusion matrix
+conf_matrix <- table(predictions_subtype, test_labels_subtype)
+
+# Create a confusion matrix heatmap
+heatmap(conf_matrix, 
+        Rowv = NA, Colv = NA, 
+        col = colorRampPalette(c("white", "blue"))(100),
+        main = "Confusion Matrix Heatmap",
+        xlab = "Predicted Labels",
+        ylab = "Actual Labels",
+        cexRow = 1.2, cexCol = 1.2,
+        margins = c(5, 5))
+
+# Add color legend
+legend("bottomleft", legend = c("Basal", "Her2", "LumA", "LumB", "Normal"),
+       fill = colorRampPalette(c("white", "blue"))(5),
+       title = "Subtypes")
+```
+
+# SVM improvements 
+Previously, we divided the training-test data into 70/30. The following new division (80/20) is in order to improve the SVM results.
+
+```{r}
+
+data_indices_80 <- seq_len(nrow(numeric_data))
+
+# Sample 80% of the row indices for the training set
+train_indices_80 <- sample(data_indices_80, size = 0.8 * nrow(numeric_data))
+
+# Create the training set using the sampled row indices
+train_data_80 <- numeric_data[train_indices_80, ]
+
+# Create the testing set by excluding the training set row indices
+test_data_80 <- numeric_data[-train_indices_80, ]
+
+train_labels_subtype_80 <- as.factor(data$subtype[train_indices_80])
+test_labels_subtype_80 <- data$subtype[-train_indices_80]
+```
+
+```{r}
+# Install and load the required package
+library(e1071)
+
+# SVM function with radial basis kernel (you can try other kernels as well)
+svm_model_subtype_80 <- svm(x = train_data_80, y = train_labels_subtype_80, kernel = "radial")
+
+# Make predictions on the testing set
+predictions_subtype_80 <- predict(svm_model_subtype_80, newdata = test_data_80)
+
+```
+
+
+```{r}
+
+confusion_matrix_80 <- table(predictions_subtype_80, test_labels_subtype_80)
+print("Confusion Matrix:")
+print(confusion_matrix_80)
+
+```
+
+```{r}
+# Evaluate the model for each classification task
+accuracy_subtype_80 <- mean(predictions_subtype_80 == test_labels_subtype_80)
+precision_80 <- confusion_matrix_80[2, 2] / sum(confusion_matrix_80[, 2])
+recall_80 <- confusion_matrix_80[2, 2] / sum(confusion_matrix_80[2, ])
+f1_score_80 <- 2 * (precision_80 * recall_80) / (precision_80 + recall_80)
+
+print(paste("Accuracy for Subtype (80%):", accuracy_subtype_80))
+print(paste("Precision:", precision_80))
+print(paste("Recall:", recall_80))
+print(paste("F1-Score:", f1_score_80))
+```
+
+
+# Additional metrics
+
+```{r}
+library(e1071)
+
+conf_matrix_80 <- table(Actual = test_labels_subtype_80, Predicted = predictions_subtype_80)
+
+average_precision_80 <- mean(precision_80)
+macro_avg_precision_80 <- mean(precision_80, na.rm = TRUE)
+micro_avg_precision_80 <- sum(diag(conf_matrix_80)) / sum(conf_matrix_80)
+
+print(paste("Average Precision:", average_precision_80))
+print(paste("Macro-Averaged Precision:", macro_avg_precision_80))
+print(paste("Micro-Averaged Precision:", micro_avg_precision_80))
+```
+
+# Analyze SVM results
+
+```{r}
+# Compute the confusion matrix
+conf_matrix_80 <- table(predictions_subtype_80, test_labels_subtype_80)
+
+# Create a confusion matrix heatmap
+heatmap(conf_matrix_80, 
+        Rowv = NA, Colv = NA, 
+        col = colorRampPalette(c("white", "blue"))(100),
+        main = "Confusion Matrix Heatmap",
+        xlab = "Predicted Labels",
+        ylab = "Actual Labels",
+        cexRow = 1.2, cexCol = 1.2,
+        margins = c(5, 5))
+
+# Add color legend
+legend("bottomleft", legend = c("Basal", "Her2", "LumA", "LumB", "Normal"),
+       fill = colorRampPalette(c("white", "blue"))(5),
+       title = "Subtypes")
+```
+
+# Compare between the 2 SVM results
+
+Metrics        |  70/30         | 80/20
+-------------  |  ------------- | -------------
+Accuracy       |  0.808         | 0.839    
+Precision      |  0.7           | 0.6 
+Recall         |  0.875         | 0.857
+F1 score       |  0.777         | 0.705
+
+Conclusion: Increasing the training set size to 80% led to improved accuracy, but with a decrease in precision and F1 score. The recall remained relatively consistent between the two configurations. These results suggest that the model's performance can be influenced by the proportion of training and testing data, and there's a trade-off between correctly predicting positive cases and minimizing false positives.
+
+
+
+#randomForest
+
+num_trees <- 1500
+
+# Random Forest for Estrogen Receptor
+rf_er <- randomForest(factor(train_labels_er) ~ ., data = train_data, ntree = num_trees)
+
+# Random Forest for Progesterone Receptor
+rf_pr <- randomForest(factor(train_labels_pr) ~ ., data = train_data, ntree = num_trees)
+
+# Random Forest for HER2 Receptor
+rf_her2 <- randomForest(factor(train_labels_her2) ~ ., data = train_data, ntree = num_trees)
+
+# Random Forest for Subtype
+rf_subtype <- randomForest(factor(train_labels_subtype) ~ ., data = train_data, ntree = num_trees)
+
+# Make predictions on the testing set
+predictions_er <- predict(rf_er, newdata = test_data)
+predictions_pr <- predict(rf_pr, newdata = test_data)
+predictions_her2 <- predict(rf_her2, newdata = test_data)
+predictions_subtype <- predict(rf_subtype, newdata = test_data)
+
+# Evaluate the model for each classification task (you can use accuracy, confusion matrix, etc.)
+accuracy_er <- mean(predictions_er == test_labels_er)
+accuracy_pr <- mean(predictions_pr == test_labels_pr)
+accuracy_her2 <- mean(predictions_her2 == test_labels_her2)
+accuracy_subtype <- mean(predictions_subtype == test_labels_subtype)
+
+# Print the accuracies
+print(paste("Accuracy for Estrogen Receptor:", accuracy_er))
+print(paste("Accuracy for Progesterone Receptor:", accuracy_pr))
+print(paste("Accuracy for HER2 Receptor:", accuracy_her2))
+print(paste("Accuracy for Subtype:", accuracy_subtype))
+
+
+
+
+# Load required library
+library(ranger)
+
+# Fit a random forest model using the ranger package
+rf_fit <- ranger(train_labels_her2 ~ ., 
+                 data = train_data, 
+                 num.trees = 2000,
+                 max.depth = 20,
+                 probability = TRUE)
+
+# Print the fitted model
+rf_fit
+
+
+# Load required library
+library(ranger)
+
+# Fit a random forest model using the ranger package
+rf_fit <- ranger(train_labels_her2 ~ ., 
+                 data = train_data, 
+                 num.trees = 6000,
+                 mtry = 0.2,       # Specify a fraction of predictors to consider at each split
+                 min.node.size = 30, # Increase this for larger data
+                 sample.fraction = 0.5,  # Use a fraction of your data for each tree
+                 max.depth = 100,
+                 probability = TRUE)
+
+# Print the fitted model
+rf_fit
+
+```
+
+
+## decision tree
+The C5.0() function makes it easy to add boosting to our C5.0 decision tree. We
+simply need to add an additional trials parameter indicating the number of
+separate decision trees to use in the boosted team. The trials parameter sets an
+upper limit; the algorithm will stop adding trees if it recognizes that additional 
+trials do not seem to be improving the accuracy. 
+```{r}
+library(gmodels)
+library(C50)
+
+# apply model in training data (17th column is the label to be predicted)
+model <- C5.0(train_data, train_labels_er,trials = 10)
+pred <- predict(model, test_data)
+
+acc <- sum(pred == test_labels_er) / length(test_labels_er)
+print(paste("Accuracy:", round(acc * 100, 2), "%"))
+
+summary(model)
+CrossTable(test_labels_er, pred, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE)
+```
+
+```{r}
+model_dt_her2 <- C5.0(train_data, train_labels_her2, trials = 10, model = "C5.0Rules")
+#model_dt_her2 <- C5.0(train_data, train_labels_her2,trials = 10)
+pred_her2 <- predict(model_dt_her2, test_data)
+
+acc <- sum(pred_her2 == test_labels_her2) / length(test_labels_her2)
+print(paste("Accuracy:", round(acc * 100, 2), "%"))
+
+summary(model_dt_her2)
+CrossTable(test_labels_her2, pred_her2, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE)
+```
+
+```{r}
+model_dt_pr <- C5.0(train_data, train_labels_pr,trials = 10)
+pred_pr <- predict(model_dt_pr, test_data)
+
+acc <- sum(pred_pr == test_labels_pr) / length(test_labels_pr)
+print(paste("Accuracy:", round(acc * 100, 2), "%"))
+
+summary(model_dt_pr)
+CrossTable(test_labels_pr, pred_pr, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE)
+```
+
+```{r}
+model_dt_subtype<- C5.0(train_data, train_labels_subtype)
+pred_subtype <- predict(model_dt_subtype, test_data)
+
+acc <- sum(pred_subtype == train_labels_subtype) / length(train_labels_subtype)
+print(paste("Accuracy:", round(acc * 100, 2), "%"))
+
+#summary(model_dt_subtype)
+CrossTable(test_labels_subtype, pred_subtype, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE)
+```
+
+#randomForest
+still not working
+
+num_trees <- 100
+
+# Random Forest for Estrogen Receptor
+rf_er <- randomForest(factor(train_labels_er) ~ ., data = train_data, ntree = num_trees)
+
+# Random Forest for Progesterone Receptor
+rf_pr <- randomForest(factor(train_labels_pr) ~ ., data = train_data, ntree = num_trees)
+
+# Random Forest for HER2 Receptor
+rf_her2 <- randomForest(factor(train_labels_her2) ~ ., data = train_data, ntree = num_trees)
+
+# Random Forest for Subtype
+rf_subtype <- randomForest(factor(train_labels_subtype) ~ ., data = train_data, ntree = num_trees)
+
+# Make predictions on the testing set
+predictions_er <- predict(rf_er, newdata = test_data)
+predictions_pr <- predict(rf_pr, newdata = test_data)
+predictions_her2 <- predict(rf_her2, newdata = test_data)
+predictions_subtype <- predict(rf_subtype, newdata = test_data)
+
+# Evaluate the model for each classification task (you can use accuracy, confusion matrix, etc.)
+accuracy_er <- mean(predictions_er == test_labels_er)
+accuracy_pr <- mean(predictions_pr == test_labels_pr)
+accuracy_her2 <- mean(predictions_her2 == test_labels_her2)
+accuracy_subtype <- mean(predictions_subtype == test_labels_subtype)
+
+# Print the accuracies
+print(paste("Accuracy for Estrogen Receptor:", accuracy_er))
+print(paste("Accuracy for Progesterone Receptor:", accuracy_pr))
+print(paste("Accuracy for HER2 Receptor:", accuracy_her2))
+print(paste("Accuracy for Subtype:", accuracy_subtype))
+
+
+
+
+
+## kmeans 
+
+```{r}
+rna_matrix <- as.matrix(numeric_data)
+pca <- prcomp(rna_matrix)
+```
+
+
+```{r}
+rna_matrix <- as.matrix(numeric_data)
+
+set.seed(123)  # For reproducibility
+k <- 4  # Number of clusters
+kmeans_result <- kmeans(rna_matrix, centers = k)
+
+# Get the cluster assignments for each data point
+cluster_labels <- kmeans_result$cluster
+
+# Assuming 'Class' column is a factor
+class_labels <- data$subtype
+unique(class_labels)
+
+# Perform PCA
+# Create a data frame with PCA results, cluster labels, and class labels
+pca_data <- data.frame(PC1 = pca$x[, 1], PC2 = pca$x[, 2], Cluster = factor(cluster_labels), Class = factor(class_labels))
+
+# Define colors for the class labels
+class_colors <- c("LumA"  = "blue",  "Her2"= "red",   "LumB" = "green", "Basal" = "orange")
+                  # "Normal"="black")
+
+# Plot PCA with clusters and class labels
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Class, shape = Cluster)) +
+  geom_point() +
+  labs(title = "RNA-seq Data Clustering using k-means (k = 4)") +
+  scale_color_manual(values = class_colors) +
+  guides(shape = guide_legend(title = "Cluster"), color = guide_legend(title = "Class"))
+
+```
+
+```{r}
+k <- 3
+kmeans_result <- kmeans(rna_matrix, centers = k)
+cluster_labels <- kmeans_result$cluster
+
+# Assuming 'Class' column is a factor
+class_labels <- data$estrogen_receptor
+unique(class_labels)
+
+
+# Create a data frame with PCA results, cluster labels, and class labels
+pca_data <- data.frame(PC1 = pca$x[, 1], PC2 = pca$x[, 2], Cluster = factor(cluster_labels), Class = factor(class_labels))
+
+# Define colors for the class labels
+class_colors<-c("Positive"= "blue", "Negative" = "red")
+
+# Plot PCA with clusters and class labels
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Class, shape = Cluster)) +
+  geom_point() +
+  labs(title = "RNA-seq Data Clustering using k-means (k = 3)") +
+  scale_color_manual(values = class_colors) +
+  guides(shape = guide_legend(title = "Cluster"), color = guide_legend(title = "Class"))
+
+```
+
+```{r}
+k <- 3
+kmeans_result <- kmeans(rna_matrix, centers = k)
+cluster_labels <- kmeans_result$cluster
+
+# Assuming 'Class' column is a factor
+class_labels <- data$progesterone_receptor
+unique(class_labels)
+
+# Create a data frame with PCA results, cluster labels, and class labels
+pca_data <- data.frame(PC1 = pca$x[, 1], PC2 = pca$x[, 2], Cluster = factor(cluster_labels), Class = factor(class_labels))
+
+# Define colors for the class labels
+class_colors<-c("Positive"= "blue", "Negative" = "red")
+#class_colors <- c("LumA"  = "blue",  "Her2"= "red",   "LumB" = "green", "Basal" = "orange", "Normal"="black")
+
+# Plot PCA with clusters and class labels
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Class, shape = Cluster)) +
+  geom_point() +
+  labs(title = "RNA-seq Data Clustering using k-means (k = 3)") +
+  scale_color_manual(values = class_colors) +
+  guides(shape = guide_legend(title = "Cluster"), color = guide_legend(title = "Class"))
+
+```
+
+
